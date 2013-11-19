@@ -1,0 +1,7 @@
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0
+Comment: The licensing of this charm is aligned to upstream ceph
+ as the ceph upstart integration is distributed as part of the charm.
+
+Files: *
+Copyright: 2012, Canonical Ltd.
+License: LGPL-2.1
