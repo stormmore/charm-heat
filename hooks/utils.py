@@ -66,7 +66,7 @@ BASE_RESOURCE_MAP = OrderedDict([
     (HEAT_CONF, {
         'services': BASE_SERVICES,
         'contexts': [context.AMQPContext(),
-                     context.SharedDBContext(relation_prefix='nova'),
+                     context.SharedDBContext(relation_prefix='heat'),
                      context.OSConfigFlagContext(),
                      heat_context.IdentityServiceContext()]
     }),

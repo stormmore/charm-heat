@@ -210,6 +210,7 @@ def import_key(keyid):
 
 
 def configure_installation_source(rel):
+    juju_log("in configure %s" % rel)
     '''Configure apt installation source.'''
     if rel == 'distro':
         return
@@ -219,6 +220,7 @@ def configure_installation_source(rel):
             f.write(DISTRO_PROPOSED % ubuntu_rel)
     elif rel[:4] == "ppa:":
         src = rel
+        juju_log("add apt %s" % src)
         subprocess.check_call(["add-apt-repository", "-y", src])
     elif rel[:3] == "deb":
         l = len(rel.split('|'))

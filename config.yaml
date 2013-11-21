@@ -15,7 +15,7 @@ options:
       provide a later version of OpenStack will trigger a software
       upgrade.
   rabbit-user:
-    default: nova
+    default: heat
     type: string
     description: Username used to access rabbitmq queue
   rabbit-vhost:
@@ -23,10 +23,10 @@ options:
     type: string
     decsription: Rabbitmq vhost
   database-user:
-    default: nova
+    default: heat
     type: string
     description: Username for database access
   database:
-    default: nova
+    default: heat
     type: string
     description: Database name

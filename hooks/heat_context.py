@@ -15,7 +15,7 @@ class IdentityServiceContext(context.IdentityServiceContext):
             return
 
         # the ec2 api needs to know the location of the keystone ec2
-        # tokens endpoint, set in nova.conf
+        # tokens endpoint, set in heat.conf
         ec2_tokens = 'http://%s:%s/v2.0/ec2tokens' % (ctxt['service_host'],
                                                       ctxt['service_port'])
         ctxt['keystone_ec2_url'] = ec2_tokens

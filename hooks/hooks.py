@@ -40,7 +40,6 @@ from charmhelpers.fetch import (
 
 from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
-    openstack_upgrade_available,
 )
 
 from utils import (
@@ -49,13 +48,8 @@ from utils import (
     determine_endpoints,
     determine_packages,
     determine_ports,
-    do_openstack_upgrade,
     keystone_ca_cert_b64,
     save_script_rc,
-    ssh_compute_add,
-    ssh_compute_remove,
-    ssh_known_hosts_b64,
-    ssh_authorized_keys_b64,
     register_configs,
     restart_map,
     HEAT_CONF
@@ -106,9 +100,9 @@ def amqp_changed():
 
 @hooks.hook('shared-db-relation-joined')
 def db_joined():
-    relation_set(nova_database=config('database'),
-                 nova_username=config('database-user'),
-                 nova_hostname=unit_get('private-address'))
+    relation_set(heat_database=config('database'),
+                 heat_username=config('database-user'),
+                 heat_hostname=unit_get('private-address'))
 
 
 @hooks.hook('shared-db-relation-changed')
@@ -118,6 +112,7 @@ def db_changed():
         log('shared-db relation incomplete. Peer not ready?')
         return
     CONFIGS.write(HEAT_CONF)
+    check_call(['heat-manage', 'db_sync'])
 
 
 @hooks.hook('identity-service-relation-joined')
