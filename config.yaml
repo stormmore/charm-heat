@@ -30,3 +30,7 @@ options:
     default: heat
     type: string
     description: Database name
+  region:
+    default: RegionOne
+    type: string
+    description: OpenStack Region

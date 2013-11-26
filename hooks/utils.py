@@ -62,57 +62,33 @@ API_PORTS = {
 HEAT_CONF = '/etc/heat/heat.conf'
 HEAT_API_PASTE = '/etc/heat/api-paste.ini'
 
-BASE_RESOURCE_MAP = OrderedDict([
+CONFIG_FILES = OrderedDict([
     (HEAT_CONF, {
         'services': BASE_SERVICES,
         'contexts': [context.AMQPContext(),
                      context.SharedDBContext(relation_prefix='heat'),
                      context.OSConfigFlagContext(),
-                     heat_context.IdentityServiceContext()]
+                     context.IdentityServiceContext()]
     }),
     (HEAT_API_PASTE, {
         'services': [s for s in BASE_SERVICES if 'api' in s],
-        'contexts': [heat_context.IdentityServiceContext()],
+        'contexts': [context.IdentityServiceContext()],
     })
 ])
 
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
-
-def resource_map():
-    '''
-    Dynamically generate a map of resources that will be managed for a single
-    hook execution.
-    '''
-    resource_map = deepcopy(BASE_RESOURCE_MAP)
-
-    return resource_map
 
 
 def register_configs():
     release = os_release('heat-engine')
     configs = templating.OSConfigRenderer(templates_dir=TEMPLATES,
                                           openstack_release=release)
-    for cfg, rscs in resource_map().iteritems():
-        configs.register(cfg, rscs['contexts'])
+
+    confs = [HEAT_CONF, HEAT_API_PASTE]
+    for conf in confs:
+        configs.register(conf, CONFIG_FILES[conf]['contexts'])
+
     return configs
-
-
-def restart_map():
-    return OrderedDict([(cfg, v['services'])
-                        for cfg, v in resource_map().iteritems()
-                        if v['services']])
-
-
-def determine_ports():
-    '''Assemble a list of API ports for services we are managing'''
-    ports = []
-    for cfg, services in restart_map().iteritems():
-        for service in services:
-            try:
-                ports.append(API_PORTS[service])
-            except KeyError:
-                pass
-    return list(set(ports))
 
 
 def api_port(service):
@@ -121,9 +97,7 @@ def api_port(service):
 
 def determine_packages():
     # currently all packages match service names
-    packages = [] + BASE_PACKAGES
-    for k, v in resource_map().iteritems():
-        packages.extend(v['services'])
+    packages = BASE_PACKAGES + BASE_SERVICES
     return list(set(packages))
 
 
@@ -150,27 +124,3 @@ def auth_token_config(setting):
     if value.startswith('%'):
         return None
     return value
-
-
-def keystone_ca_cert_b64():
-    '''Returns the local Keystone-provided CA cert if it exists, or None.'''
-    if not os.path.isfile(CA_CERT_PATH):
-        return None
-    with open(CA_CERT_PATH) as _in:
-        return b64encode(_in.read())
-
-
-def determine_endpoints(url):
-    '''Generates a dictionary containing all relevant endpoints to be
-    passed to keystone as relation settings.'''
-    region = config('region')
-
-    heat_url = ('%s:%s/$(tenant_id)s' %
-                (url, api_port('heat-api-cfn')))
-
-    # the base endpoints
-    endpoints = {
-        'heat_service': 'heat',
-    }
-
-    return endpoints

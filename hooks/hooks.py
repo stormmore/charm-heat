@@ -42,17 +42,20 @@ from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
 )
 
+
+from charmhelpers.contrib.hahelpers.cluster import (
+    canonical_url
+)
+
 from utils import (
     api_port,
     auth_token_config,
-    determine_endpoints,
     determine_packages,
-    determine_ports,
-    keystone_ca_cert_b64,
     save_script_rc,
     register_configs,
-    restart_map,
-    HEAT_CONF
+    HEAT_CONF,
+    HEAT_API_PASTE,
+    API_PORTS
 )
 
 from charmhelpers.payload.execd import execd_preinstall
@@ -74,11 +77,14 @@ def install():
             f = os.path.join(_files, f)
             log('Installing %s to /usr/bin' % f)
             shutil.copy2(f, '/usr/bin')
-    [open_port(port) for port in determine_ports()]
+
+    for key, port in API_PORTS.iteritems():
+        open_port(port)
 
 @hooks.hook('config-changed')
-@restart_on_change(restart_map())
 def config_changed():
+    if not os.path.isdir('/etc/heat'):
+        os.mkdir('/etc/heat')
     save_script_rc()
     CONFIGS.write_all()
 
@@ -90,7 +96,6 @@ def amqp_joined(relation_id=None):
 
 
 @hooks.hook('amqp-relation-changed')
-@restart_on_change(restart_map())
 def amqp_changed():
     if 'amqp' not in CONFIGS.complete_contexts():
         log('amqp relation incomplete. Peer not ready?')
@@ -106,7 +111,6 @@ def db_joined():
 
 
 @hooks.hook('shared-db-relation-changed')
-@restart_on_change(restart_map())
 def db_changed():
     if 'shared-db' not in CONFIGS.complete_contexts():
         log('shared-db relation incomplete. Peer not ready?')
@@ -118,47 +122,31 @@ def db_changed():
 @hooks.hook('identity-service-relation-joined')
 def identity_joined(rid=None):
     base_url = canonical_url(CONFIGS)
-    relation_set(relation_id=rid, **determine_endpoints(base_url))
+    api_url = '%s:8004/v1/$(tenant_id)s' % base_url
+    cfn_url = '%s:8000/v1' % base_url
+    relation_data = {
+        'heat_service': 'heat',
+        'heat_region': config('region'),
+        'heat_public_url': api_url,
+        'heat_admin_url': api_url,
+        'heat_internal_url': api_url, 
+        'heat-cfn_service': 'heat-cfn',
+        'heat-cfn_region': config('region'),
+        'heat-cfn_public_url': cfn_url,
+        'heat-cfn_admin_url': cfn_url,
+        'heat-cfn_internal_url': cfn_url, 
+    }
 
+    relation_set(relation_id=rid, **relation_data)
 
 @hooks.hook('identity-service-relation-changed')
-@restart_on_change(restart_map())
 def identity_changed():
     if 'identity-service' not in CONFIGS.complete_contexts():
         log('identity-service relation incomplete. Peer not ready?')
         return
-    CONFIGS.write('/etc/heat/api-paste.ini')
+    CONFIGS.write(HEAT_API_PASTE)
     CONFIGS.write(HEAT_CONF)
 
-
-def _auth_config():
-    '''Grab all KS auth token config from api-paste.ini, or return empty {}'''
-    ks_auth_host = auth_token_config('auth_host')
-    if not ks_auth_host:
-        # if there is no auth_host set, identity-service changed hooks
-        # have not fired, yet.
-        return {}
-    cfg = {
-        'auth_host': ks_auth_host,
-        'auth_port': auth_token_config('auth_port'),
-        'service_port': auth_token_config('service_port'),
-        'service_username': auth_token_config('admin_user'),
-        'service_password': auth_token_config('admin_password'),
-        'service_tenant_name': auth_token_config('admin_tenant_name'),
-        'auth_uri': auth_token_config('auth_uri')
-    }
-    return cfg
-
-
-def keystone_compute_settings():
-    ks_auth_config = _auth_config()
-    rel_settings = {}
-
-    ks_ca = keystone_ca_cert_b64()
-    if ks_auth_config and ks_ca:
-        rel_settings['ca_cert'] = ks_ca
-
-    return rel_settings
 
 
 @hooks.hook('amqp-relation-broken',
