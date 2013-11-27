@@ -47,7 +47,7 @@ from charmhelpers.contrib.hahelpers.cluster import (
     canonical_url
 )
 
-from utils import (
+from heat_utils import (
     api_port,
     auth_token_config,
     determine_packages,
