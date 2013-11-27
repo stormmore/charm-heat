@@ -5,4 +5,4 @@ from charmhelpers.fetch import apt_install, filter_installed_packages
 from charmhelpers.contrib.openstack import context, neutron, utils
 
 from charmhelpers.contrib.hahelpers.cluster import (
-    determine_api_port, determine_haproxy_port)
+    determine_api_port)
