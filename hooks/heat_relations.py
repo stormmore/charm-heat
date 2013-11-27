@@ -7,13 +7,11 @@
 #  Yolanda Robla <yolanda.robla@canonical.com>
 #
 
-import glob
 import os
 import shutil
 import sys
 
 from subprocess import check_call
-from urlparse import urlparse
 
 from charmhelpers.core.hookenv import (
     Hooks,
@@ -21,8 +19,6 @@ from charmhelpers.core.hookenv import (
     config,
     charm_dir,
     log,
-    ERROR,
-    relation_get,
     relation_ids,
     relation_set,
     open_port,
@@ -42,16 +38,14 @@ from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
 )
 
-
 from charmhelpers.contrib.hahelpers.cluster import (
     canonical_url
 )
 
 from heat_utils import (
-    api_port,
-    auth_token_config,
+    do_openstack_upgrade,
+    restart_map,
     determine_packages,
-    save_script_rc,
     register_configs,
     HEAT_CONF,
     HEAT_API_PASTE,
@@ -66,6 +60,7 @@ CONFIGS = register_configs()
 
 @hooks.hook('install')
 def install():
+    juju_log('Installing heat packages')
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
     apt_update()
@@ -82,11 +77,16 @@ def install():
         open_port(port)
 
 @hooks.hook('config-changed')
+@restart_on_change(restart_map())
 def config_changed():
+    if openstack_upgrade_available('heat-engine'):
+        juju_log('Upgrading OpenStack release')
+        do_openstack_upgrade(CONFIGS)
+
     if not os.path.isdir('/etc/heat'):
         os.mkdir('/etc/heat')
-    save_script_rc()
     CONFIGS.write_all()
+    configure_https()
 
 
 @hooks.hook('amqp-relation-joined')
@@ -96,6 +96,7 @@ def amqp_joined(relation_id=None):
 
 
 @hooks.hook('amqp-relation-changed')
+@restart_on_change(restart_map())
 def amqp_changed():
     if 'amqp' not in CONFIGS.complete_contexts():
         log('amqp relation incomplete. Peer not ready?')
@@ -111,6 +112,7 @@ def db_joined():
 
 
 @hooks.hook('shared-db-relation-changed')
+@restart_on_change(restart_map())
 def db_changed():
     if 'shared-db' not in CONFIGS.complete_contexts():
         log('shared-db relation incomplete. Peer not ready?')
@@ -140,6 +142,7 @@ def identity_joined(rid=None):
     relation_set(relation_id=rid, **relation_data)
 
 @hooks.hook('identity-service-relation-changed')
+@restart_on_change(restart_map())
 def identity_changed():
     if 'identity-service' not in CONFIGS.complete_contexts():
         log('identity-service relation incomplete. Peer not ready?')
@@ -147,6 +150,8 @@ def identity_changed():
     CONFIGS.write(HEAT_API_PASTE)
     CONFIGS.write(HEAT_CONF)
 
+    # possibly configure HTTPS for API and registry
+    configure_https()
 
 
 @hooks.hook('amqp-relation-broken',
@@ -160,6 +165,17 @@ def relation_broken():
 def upgrade_charm():
     for r_id in relation_ids('amqp'):
         amqp_joined(relation_id=r_id)
+
+
+def configure_https():
+    '''
+    Enables SSL API Apache config if appropriate and kicks
+    identity-service and image-service with any required
+    updates
+    '''
+    CONFIGS.write_all()
+    for r_id in relation_ids('identity-service'):
+        identity_joined(relation_id=r_id)
 
 
 def main():

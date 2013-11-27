@@ -5,24 +5,14 @@
 #  Yolanda Robla <yolanda.robla@canonical.com>
 #
 
-import os
-import subprocess
-import ConfigParser
-
-from base64 import b64encode
 from collections import OrderedDict
-from copy import deepcopy
 
 from charmhelpers.contrib.openstack import context, templating
 
 from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
-    get_host_ip,
-    get_hostname,
     get_os_codename_install_source,
-    is_ip,
-    os_release,
-    save_script_rc as _save_script_rc)
+    os_release)
 
 from charmhelpers.fetch import (
     apt_install,
@@ -30,13 +20,7 @@ from charmhelpers.fetch import (
 )
 
 from charmhelpers.core.hookenv import (
-    config,
-    log,
-    relation_get,
-    relation_ids,
-    remote_unit,
-    INFO,
-    ERROR,
+    log
 )
 
 import heat_context
@@ -76,9 +60,6 @@ CONFIG_FILES = OrderedDict([
     })
 ])
 
-CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
-
-
 def register_configs():
     release = os_release('heat-engine')
     configs = templating.OSConfigRenderer(templates_dir=TEMPLATES,
@@ -101,26 +82,47 @@ def determine_packages():
     return list(set(packages))
 
 
-def save_script_rc():
-    env_vars = {
-        'OPENSTACK_SERVICE_API': 'heat-api',
-        'OPENSTACK_SERVICE_API_CFN': 'heat-api-cfn',
-        'OPENSTACK_SERVICE_ENGINE': 'heat-engine'
-    }
-    _save_script_rc(**env_vars)
+def do_openstack_upgrade(configs):
+    """
+    Perform an uprade of heat.  Takes care of upgrading packages,
+    rewriting configs and potentially any other post-upgrade
+    actions.
+
+    :param configs: The charms main OSConfigRenderer object.
+
+    """
+    new_src = config('openstack-origin')
+    new_os_rel = get_os_codename_install_source(new_src)
+
+    log('Performing OpenStack upgrade to %s.' % (new_os_rel))
+
+    configure_installation_source(new_src)
+    dpkg_opts = [
+        '--option', 'Dpkg::Options::=--force-confnew',
+        '--option', 'Dpkg::Options::=--force-confdef',
+    ]
+    apt_update()
+    packages = BASE_PACKAGES + BASE_SERVICES
+    apt_install(packages=packages, options=dpkg_opts, fatal=True)
+
+    # set CONFIGS to load templates from new release and regenerate config
+    configs.set_release(openstack_release=new_os_rel)
+    configs.write_all()
 
 
-def auth_token_config(setting):
+def restart_map():
     '''
-    Returns currently configured value for setting in api-paste.ini's
-    authtoken section, or None.
+    Determine the correct resource map to be passed to
+    charmhelpers.core.restart_on_change() based on the services configured.
+
+    :returns: dict: A dictionary mapping config file to lists of services
+                    that should be restarted when file changes.
     '''
-    config = ConfigParser.RawConfigParser()
-    config.read('/etc/heat/api-paste.ini')
-    try:
-        value = config.get('filter:authtoken', setting)
-    except:
-        return None
-    if value.startswith('%'):
-        return None
-    return value
+    _map = []
+    for f, ctxt in CONFIG_FILES.iteritems():
+        svcs = []
+        for svc in ctxt['services']:
+            svcs.append(svc)
+        if svcs:
+            _map.append((f, svcs))
+    return OrderedDict(_map)
