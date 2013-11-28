@@ -36,6 +36,7 @@ from charmhelpers.fetch import (
 
 from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
+    openstack_upgrade_available
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -86,7 +87,6 @@ def config_changed():
     if not os.path.isdir('/etc/heat'):
         os.mkdir('/etc/heat')
     CONFIGS.write_all()
-    configure_https()
 
 
 @hooks.hook('amqp-relation-joined')
@@ -150,9 +150,6 @@ def identity_changed():
     CONFIGS.write(HEAT_API_PASTE)
     CONFIGS.write(HEAT_CONF)
 
-    # possibly configure HTTPS for API and registry
-    configure_https()
-
 
 @hooks.hook('amqp-relation-broken',
             'identity-service-relation-broken',
@@ -165,17 +162,6 @@ def relation_broken():
 def upgrade_charm():
     for r_id in relation_ids('amqp'):
         amqp_joined(relation_id=r_id)
-
-
-def configure_https():
-    '''
-    Enables SSL API Apache config if appropriate and kicks
-    identity-service and image-service with any required
-    updates
-    '''
-    CONFIGS.write_all()
-    for r_id in relation_ids('identity-service'):
-        identity_joined(relation_id=r_id)
 
 
 def main():
