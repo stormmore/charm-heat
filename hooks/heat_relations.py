@@ -61,7 +61,6 @@ CONFIGS = register_configs()
 
 @hooks.hook('install')
 def install():
-    juju_log('Installing heat packages')
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
     apt_update()
@@ -81,7 +80,6 @@ def install():
 @restart_on_change(restart_map())
 def config_changed():
     if openstack_upgrade_available('heat-engine'):
-        juju_log('Upgrading OpenStack release')
         do_openstack_upgrade(CONFIGS)
 
     if not os.path.isdir('/etc/heat'):
