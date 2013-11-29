@@ -1,7 +1,6 @@
 from collections import OrderedDict
-from mock import patch, MagicMock, call
-from copy import deepcopy
-from test_utils import CharmTestCase, patch_open
+from mock import patch, MagicMock
+from test_utils import CharmTestCase
 
 from charmhelpers.core import hookenv
 
@@ -16,7 +15,9 @@ TO_PATCH = [
     'config',
     'log',
     'os_release',
-    'relation_ids'
+    'get_os_codename_install_source',
+    'configure_installation_source',
+    'apt_install'
 ]
 
 
@@ -24,10 +25,10 @@ TO_PATCH = [
 # before frontends (haproxy/apaceh) to avoid port conflicts.
 RESTART_MAP = OrderedDict([
     ('/etc/heat/heat.conf', [
-        'heat-api', 'heat-api-cfn', 'heat-api-engine'
+        'heat-api', 'heat-api-cfn', 'heat-engine'
     ]),
     ('/etc/heat/api-paste.ini', [
-        'heat-api', 'heat-api-cfn', 'heat-api-engine'
+        'heat-api', 'heat-api-cfn'
     ])
 ])
 
@@ -38,22 +39,17 @@ class HeatUtilsTests(CharmTestCase):
         super(HeatUtilsTests, self).setUp(utils, TO_PATCH)
         self.config.side_effect = self.test_config.get
 
-
     @patch('charmhelpers.contrib.openstack.context.SubordinateConfigContext')
     def test_determine_packages(self, subcontext):
-        self.relation_ids.return_value = []
         self.os_release.return_value = 'havana'
         pkgs = utils.determine_packages()
         ex = list(set(utils.BASE_PACKAGES + utils.BASE_SERVICES))
         self.assertEquals(ex, pkgs)
 
-
     def test_restart_map(self):
         self.assertEquals(RESTART_MAP, utils.restart_map())
 
-
-    @patch.object(utils, 'migrate_database')
-    def test_openstack_upgrade(self, migrate):
+    def test_openstack_upgrade(self):
         self.config.side_effect = None
         self.config.return_value = 'cloud:precise-havana'
         self.get_os_codename_install_source.return_value = 'havana'

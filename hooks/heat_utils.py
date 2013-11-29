@@ -20,10 +20,9 @@ from charmhelpers.fetch import (
 )
 
 from charmhelpers.core.hookenv import (
-    log
+    log,
+    config
 )
-
-import heat_context
 
 TEMPLATES = 'templates/'
 
@@ -59,6 +58,7 @@ CONFIG_FILES = OrderedDict([
         'contexts': [context.IdentityServiceContext()],
     })
 ])
+
 
 def register_configs():
     release = os_release('heat-engine')

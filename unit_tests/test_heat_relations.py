@@ -20,33 +20,26 @@ TO_PATCH = [
     'Hooks',
     'canonical_url',
     'config',
-    'juju_log',
     'open_port',
-    'relation_ids',
     'relation_set',
-    'relation_get',
-    'service_name',
     'unit_get',
     # charmhelpers.core.host
     'apt_install',
     'apt_update',
     'restart_on_change',
-    'service_stop',
     # charmhelpers.contrib.openstack.utils
     'configure_installation_source',
-    'get_os_codename_package',
     'openstack_upgrade_available',
+    'determine_packages',
+    'charm_dir',
     # charmhelpers.contrib.hahelpers.cluster_utils
     # heat_utils
     'restart_map',
     'register_configs',
     'do_openstack_upgrade',
     # other
-    'call',
     'check_call',
-    'execd_preinstall',
-    'mkdir',
-    'lsb_release'
+    'execd_preinstall'
 ]
 
 
@@ -55,34 +48,31 @@ class HeatRelationTests(CharmTestCase):
     def setUp(self):
         super(HeatRelationTests, self).setUp(relations, TO_PATCH)
         self.config.side_effect = self.test_config.get
+        self.charm_dir.return_value = '/var/lib/juju/charms/heat/charm'
 
     def test_install_hook(self):
         repo = 'cloud:precise-havana'
-        self.determine_packages.return_value = ['python-keystoneclient',
-                                             'uuid', 'heat-api',
-                                             'heat-api-cfn',
-                                             'heat-engine']
+        self.determine_packages.return_value = [
+            'python-keystoneclient', 'uuid', 'heat-api',
+            'heat-api-cfn', 'heat-engine']
         self.test_config.set('openstack-origin', repo)
         relations.install()
         self.configure_installation_source.assert_called_with(repo)
         self.assertTrue(self.apt_update.called)
-        self.apt_install.assert_called_with(['python-keystoneclient', 
+        self.apt_install.assert_called_with(['python-keystoneclient',
                                              'uuid', 'heat-api',
-                                             'heat-api-cfn', 
+                                             'heat-api-cfn',
                                              'heat-engine'], fatal=True)
         self.execd_preinstall.assert_called()
-
 
     def test_config_changed_no_upgrade(self):
         self.openstack_upgrade_available.return_value = False
         relations.config_changed()
 
-
     def test_config_changed_with_upgrade(self):
         self.openstack_upgrade_available.return_value = True
         relations.config_changed()
         self.assertTrue(self.do_openstack_upgrade.called)
-
 
     def test_db_joined(self):
         self.unit_get.return_value = 'heat.foohost.com'
@@ -92,30 +82,23 @@ class HeatRelationTests(CharmTestCase):
                                              heat_hostname='heat.foohost.com')
         self.unit_get.assert_called_with('private-address')
 
-    @patch.object(relations, 'CONFIGS')
-    def test_db_changed_missing_relation_data(self, configs):
+    def _shared_db_test(self, configs):
         configs.complete_contexts = MagicMock()
-        configs.complete_contexts.return_value = []
+        configs.complete_contexts.return_value = ['shared-db']
+        configs.write = MagicMock()
         relations.db_changed()
-        self.juju_log.assert_called_with(
-            'shared-db relation incomplete. Peer not ready?'
-        )
 
+    @patch.object(relations, 'CONFIGS')
+    def test_db_changed(self, configs):
+        self._shared_db_test(configs)
+        self.assertEquals([call('/etc/heat/heat.conf')],
+                          configs.write.call_args_list)
 
     @patch.object(relations, 'CONFIGS')
     def test_identity_changed(self, configs):
         configs.complete_contexts.return_value = ['identity-service']
         relations.identity_changed()
         self.assertTrue(configs.write.called)
-
-
-    @patch.object(relations, 'CONFIGS')
-    def test_identity_changed_incomplete(self, configs):
-        configs.complete_contexts.return_value = []
-        relations.identity_changed()
-        self.assertTrue(self.juju_log.called)
-        self.assertFalse(configs.write.called)
-
 
     def test_amqp_joined(self):
         relations.amqp_joined()
@@ -132,16 +115,6 @@ class HeatRelationTests(CharmTestCase):
                                              vhost='openstack',
                                              relation_id='heat:1')
 
-
-    @patch.object(relations, 'CONFIGS')
-    def test_amqp_changed_missing_relation_data(self, configs):
-        configs.complete_contexts = MagicMock()
-        configs.complete_contexts.return_value = []
-        relations.amqp_changed()
-        self.log.assert_called_with(
-            'amqp relation incomplete. Peer not ready?'
-        )
-
     @patch.object(relations, 'CONFIGS')
     def test_amqp_changed_relation_data(self, configs):
         configs.complete_contexts = MagicMock()
@@ -150,16 +123,13 @@ class HeatRelationTests(CharmTestCase):
         relations.amqp_changed()
         self.assertEquals([call('/etc/heat/heat.conf')],
                           configs.write.call_args_list)
-        self.assertFalse(self.juju_log.called)
-
 
     @patch.object(relations, 'CONFIGS')
     def test_relation_broken(self, configs):
         relations.relation_broken()
         self.assertTrue(configs.write_all.called)
 
-
-def test_identity_service_joined(self):
+    def test_identity_service_joined(self):
         '''It properly requests unclustered endpoint via identity-service'''
         self.unit_get.return_value = 'heatnode1'
         self.canonical_url.return_value = 'http://heatnode1'
@@ -178,4 +148,3 @@ def test_identity_service_joined(self):
             'relation_id': None,
         }
         self.relation_set.assert_called_with(**expected)
-

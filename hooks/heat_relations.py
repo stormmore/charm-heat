@@ -76,6 +76,7 @@ def install():
     for key, port in API_PORTS.iteritems():
         open_port(port)
 
+
 @hooks.hook('config-changed')
 @restart_on_change(restart_map())
 def config_changed():
@@ -123,21 +124,22 @@ def db_changed():
 def identity_joined(rid=None):
     base_url = canonical_url(CONFIGS)
     api_url = '%s:8004/v1/$(tenant_id)s' % base_url
-    cfn_url = '%s:8000/v1'
+    cfn_url = '%s:8000/v1' % base_url
     relation_data = {
         'heat_service': 'heat',
         'heat_region': config('region'),
         'heat_public_url': api_url,
         'heat_admin_url': api_url,
-        'heat_internal_url': api_url, 
+        'heat_internal_url': api_url,
         'heat-cfn_service': 'heat-cfn',
         'heat-cfn_region': config('region'),
         'heat-cfn_public_url': cfn_url,
         'heat-cfn_admin_url': cfn_url,
-        'heat-cfn_internal_url': cfn_url, 
+        'heat-cfn_internal_url': cfn_url
     }
 
     relation_set(relation_id=rid, **relation_data)
+
 
 @hooks.hook('identity-service-relation-changed')
 @restart_on_change(restart_map())

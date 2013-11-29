@@ -1,5 +1,6 @@
 from charmhelpers.contrib.openstack import context
 
+
 class IdentityServiceContext(context.IdentityServiceContext):
     def __call__(self):
         ctxt = super(IdentityServiceContext, self).__call__()
