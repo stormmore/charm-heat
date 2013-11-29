@@ -34,16 +34,6 @@ options:
     default: RegionOne
     type: string
     description: OpenStack Region
-  ssl_cert:
-    type: string
-    description: |
-      SSL certificate to install and use for API ports.  Setting this value
-      and ssl_key will enable reverse proxying, point Glance's entry in the
-      Keystone catalog to use https, and override any certficiate and key
-      issued by Keystone (if it is configured to do so).
-  ssl_key:
-    type: string
-    description: SSL key to use with certificate specified as ssl_cert.
   rabbit-user:
     default: heat
     type: string
@@ -52,3 +42,7 @@ options:
     default: openstack
     type: string
     description: RabbitMQ virtual host to request access on rabbitmq-server.
+  encryption-key:
+    default: ""
+    type: string
+    description: Encryption key used for authentication info in database
