@@ -17,7 +17,8 @@ TO_PATCH = [
     'os_release',
     'get_os_codename_install_source',
     'configure_installation_source',
-    'apt_install'
+    'apt_install',
+    'apt_update'
 ]
 
 
