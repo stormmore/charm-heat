@@ -123,7 +123,7 @@ def db_changed():
 def identity_joined(rid=None):
     base_url = canonical_url(CONFIGS)
     api_url = '%s:8004/v1/$(tenant_id)s' % base_url
-    cfn_url = '%s:8000/v1' % base_url
+    cfn_url = '%s:8000/v1'
     relation_data = {
         'heat_service': 'heat',
         'heat_region': config('region'),
