@@ -24,6 +24,8 @@ from charmhelpers.core.hookenv import (
     config
 )
 
+import heat_context
+
 TEMPLATES = 'templates/'
 
 BASE_PACKAGES = [

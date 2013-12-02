@@ -82,9 +82,6 @@ def install():
 def config_changed():
     if openstack_upgrade_available('heat-engine'):
         do_openstack_upgrade(CONFIGS)
-
-    if not os.path.isdir('/etc/heat'):
-        os.mkdir('/etc/heat')
     CONFIGS.write_all()
 
 
