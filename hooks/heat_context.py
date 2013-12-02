@@ -6,6 +6,7 @@ from charmhelpers.contrib.openstack import context
 
 HEAT_PATH = '/var/lib/heat/'
 
+
 class IdentityServiceContext(context.IdentityServiceContext):
     def __call__(self):
         ctxt = super(IdentityServiceContext, self).__call__()
