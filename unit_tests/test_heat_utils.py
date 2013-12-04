@@ -58,3 +58,9 @@ class HeatUtilsTests(CharmTestCase):
         utils.do_openstack_upgrade(configs)
         self.assertTrue(configs.write_all.called)
         configs.set_release.assert_called_with(openstack_release='havana')
+
+    def test_api_ports(self):
+        cfn = utils.api_port('heat-api-cfn')
+        self.assertEquals(cfn, 8000)
+        cfn = utils.api_port('heat-api')
+        self.assertEquals(cfn, 8004)

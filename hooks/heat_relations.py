@@ -19,7 +19,6 @@ from charmhelpers.core.hookenv import (
     config,
     charm_dir,
     log,
-    relation_ids,
     relation_set,
     open_port,
     unit_get
@@ -153,12 +152,6 @@ def identity_changed():
             'shared-db-relation-broken')
 def relation_broken():
     CONFIGS.write_all()
-
-
-@hooks.hook('upgrade-charm')
-def upgrade_charm():
-    for r_id in relation_ids('amqp'):
-        amqp_joined(relation_id=r_id)
 
 
 def main():

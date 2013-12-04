@@ -53,12 +53,12 @@ CONFIG_FILES = OrderedDict([
         'contexts': [context.AMQPContext(),
                      context.SharedDBContext(relation_prefix='heat'),
                      context.OSConfigFlagContext(),
-                     heat_context.IdentityServiceContext(),
+                     heat_context.HeatIdentityServiceContext(),
                      heat_context.EncryptionContext()]
     }),
     (HEAT_API_PASTE, {
         'services': [s for s in BASE_SERVICES if 'api' in s],
-        'contexts': [heat_context.IdentityServiceContext()],
+        'contexts': [heat_context.HeatIdentityServiceContext()],
     })
 ])
 
