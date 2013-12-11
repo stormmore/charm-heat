@@ -86,8 +86,9 @@ def determine_packages():
 
 
 def do_openstack_upgrade(configs):
-    """
-    Perform an uprade of heat.  Takes care of upgrading packages,
+    """Perform an uprade of heat.
+
+    Takes care of upgrading packages,
     rewriting configs and potentially any other post-upgrade
     actions.
 
@@ -114,13 +115,14 @@ def do_openstack_upgrade(configs):
 
 
 def restart_map():
-    '''
+    """Restarts on config change.
+
     Determine the correct resource map to be passed to
     charmhelpers.core.restart_on_change() based on the services configured.
 
     :returns: dict: A dictionary mapping config file to lists of services
-                    that should be restarted when file changes.
-    '''
+    that should be restarted when file changes.
+    """
     _map = []
     for f, ctxt in CONFIG_FILES.iteritems():
         svcs = []

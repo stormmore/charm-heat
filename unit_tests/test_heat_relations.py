@@ -39,7 +39,8 @@ TO_PATCH = [
     'do_openstack_upgrade',
     # other
     'check_call',
-    'execd_preinstall'
+    'execd_preinstall',
+    'log'
 ]
 
 
@@ -95,10 +96,13 @@ class HeatRelationTests(CharmTestCase):
                           configs.write.call_args_list)
 
     @patch.object(relations, 'CONFIGS')
-    def test_identity_changed(self, configs):
-        configs.complete_contexts.return_value = ['identity-service']
-        relations.identity_changed()
-        self.assertTrue(configs.write.called)
+    def test_db_changed_missing_relation_data(self, configs):
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = []
+        relations.db_changed()
+        self.log.assert_called_with(
+            'shared-db relation incomplete. Peer not ready?'
+        )
 
     def test_amqp_joined(self):
         relations.amqp_joined()
@@ -108,8 +112,7 @@ class HeatRelationTests(CharmTestCase):
             relation_id=None)
 
     def test_amqp_joined_passes_relation_id(self):
-        ''' Ensures relation_id correct passed to relation_set for out of
-            hook execution '''
+        "Ensures relation_id correct passed to relation_set"
         relations.amqp_joined(relation_id='heat:1')
         self.relation_set.assert_called_with(username='heat',
                                              vhost='openstack',
@@ -125,12 +128,19 @@ class HeatRelationTests(CharmTestCase):
                           configs.write.call_args_list)
 
     @patch.object(relations, 'CONFIGS')
+    def test_amqp_changed_missing_relation_data(self, configs):
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = []
+        relations.amqp_changed()
+        self.log.assert_called()
+
+    @patch.object(relations, 'CONFIGS')
     def test_relation_broken(self, configs):
         relations.relation_broken()
         self.assertTrue(configs.write_all.called)
 
     def test_identity_service_joined(self):
-        '''It properly requests unclustered endpoint via identity-service'''
+        "It properly requests unclustered endpoint via identity-service"
         self.unit_get.return_value = 'heatnode1'
         self.canonical_url.return_value = 'http://heatnode1'
         relations.identity_joined()
@@ -148,3 +158,34 @@ class HeatRelationTests(CharmTestCase):
             'relation_id': None,
         }
         self.relation_set.assert_called_with(**expected)
+
+    def test_identity_service_joined_with_relation_id(self):
+        self.canonical_url.return_value = 'http://heatnode1'
+        relations.identity_joined(rid='identity-service:0')
+        ex = {
+            'heat_service': 'heat',
+            'heat_region': 'RegionOne',
+            'heat_public_url': 'http://heatnode1:8004/v1/$(tenant_id)s',
+            'heat_admin_url': 'http://heatnode1:8004/v1/$(tenant_id)s',
+            'heat_internal_url': 'http://heatnode1:8004/v1/$(tenant_id)s',
+            'heat-cfn_service': 'heat-cfn',
+            'heat-cfn_region': 'RegionOne',
+            'heat-cfn_public_url': 'http://heatnode1:8000/v1',
+            'heat-cfn_admin_url': 'http://heatnode1:8000/v1',
+            'heat-cfn_internal_url': 'http://heatnode1:8000/v1',
+            'relation_id': 'identity-service:0',
+        }
+        self.relation_set.assert_called_with(**ex)
+
+    @patch.object(relations, 'CONFIGS')
+    def test_identity_changed(self, configs):
+        configs.complete_contexts.return_value = ['identity-service']
+        relations.identity_changed()
+        self.assertTrue(configs.write.called)
+
+    @patch.object(relations, 'CONFIGS')
+    def test_identity_changed_incomplete(self, configs):
+        configs.complete_contexts.return_value = []
+        relations.identity_changed()
+        self.assertTrue(self.log.called)
+        self.assertFalse(configs.write.called)
