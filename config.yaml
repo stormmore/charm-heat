@@ -46,3 +46,9 @@ options:
     default: ""
     type: string
     description: Encryption key used for authentication info in database
+  use-syslog:
+    type: boolean
+    default: False
+    description: |
+      By default, all services will log into their corresponding log files.
+      Setting this to True will force all services to log to the syslog.

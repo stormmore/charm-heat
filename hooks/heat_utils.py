@@ -54,7 +54,8 @@ CONFIG_FILES = OrderedDict([
                      context.SharedDBContext(relation_prefix='heat'),
                      context.OSConfigFlagContext(),
                      heat_context.HeatIdentityServiceContext(),
-                     heat_context.EncryptionContext()]
+                     heat_context.EncryptionContext(),
+                     heat_context.HeatContext()]
     }),
     (HEAT_API_PASTE, {
         'services': [s for s in BASE_SERVICES if 'api' in s],

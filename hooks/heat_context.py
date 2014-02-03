@@ -53,3 +53,11 @@ class EncryptionContext(context.OSContextGenerator):
         encryption = get_encryption_key()
         ctxt['encryption_key'] = encryption
         return ctxt
+
+
+class HeatContext(context.OSContextGenerator):
+    def __call__(self):
+        ctxt = {
+            'use_syslog': config('use-syslog')
+        }
+        return ctxt
