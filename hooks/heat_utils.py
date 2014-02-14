@@ -55,7 +55,7 @@ CONFIG_FILES = OrderedDict([
                      context.OSConfigFlagContext(),
                      heat_context.HeatIdentityServiceContext(),
                      heat_context.EncryptionContext(),
-                     heat_context.HeatContext()]
+                     context.SyslogContext()]
     }),
     (HEAT_API_PASTE, {
         'services': [s for s in BASE_SERVICES if 'api' in s],
