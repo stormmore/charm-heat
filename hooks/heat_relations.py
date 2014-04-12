@@ -72,7 +72,7 @@ def install():
             log('Installing %s to /usr/bin' % f)
             shutil.copy2(f, '/usr/bin')
 
-    for key, port in API_PORTS.iteritems():
+    for port in API_PORTS.values():
         open_port(port)
 
 
