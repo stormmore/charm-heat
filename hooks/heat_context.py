@@ -8,8 +8,8 @@ from charmhelpers.core.host import pwgen
 HEAT_PATH = '/var/lib/heat/'
 
 
-def generate_ec2_tokens(host, port):
-    ec2_tokens = 'http://%s:%s/v2.0/ec2tokens' % (host, port)
+def generate_ec2_tokens(protocol, host, port):
+    ec2_tokens = '%s://%s:%s/v2.0/ec2tokens' % (protocol, host, port)
     return ec2_tokens
 
 
@@ -21,7 +21,8 @@ class HeatIdentityServiceContext(context.IdentityServiceContext):
 
         # the ec2 api needs to know the location of the keystone ec2
         # tokens endpoint, set in nova.conf
-        ec2_tokens = generate_ec2_tokens(ctxt['service_host'],
+        ec2_tokens = generate_ec2_tokens(ctxt['service_protocol'] or 'http',
+                                         ctxt['service_host'],
                                          ctxt['service_port'])
         ctxt['keystone_ec2_url'] = ec2_tokens
         return ctxt

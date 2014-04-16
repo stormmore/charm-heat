@@ -44,14 +44,16 @@ API_PORTS = {
     'heat-api': 8004
 }
 
+HEAT_DIR = '/etc/heat'
 HEAT_CONF = '/etc/heat/heat.conf'
 HEAT_API_PASTE = '/etc/heat/api-paste.ini'
 
 CONFIG_FILES = OrderedDict([
     (HEAT_CONF, {
         'services': BASE_SERVICES,
-        'contexts': [context.AMQPContext(),
-                     context.SharedDBContext(relation_prefix='heat'),
+        'contexts': [context.AMQPContext(ssl_dir=HEAT_DIR),
+                     context.SharedDBContext(relation_prefix='heat',
+                                             ssl_dir=HEAT_DIR),
                      context.OSConfigFlagContext(),
                      heat_context.HeatIdentityServiceContext(),
                      heat_context.EncryptionContext(),

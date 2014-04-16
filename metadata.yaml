@@ -7,9 +7,6 @@ description: |
   templates in the form of text files that can be treated like code.
 categories:
   - openstack
-provides:
-  heat:
-    interface: heat
 requires:
   shared-db:
     interface: mysql-shared

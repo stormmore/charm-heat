@@ -19,7 +19,8 @@ class TestHeatContext(CharmTestCase):
             heat_context.EncryptionContext()(),
             {'encryption_key': 'key'})
 
-    @patch('charmhelpers.contrib.openstack.context.IdentityServiceContext.__call__')
+    @patch('charmhelpers.contrib.openstack.'
+           'context.IdentityServiceContext.__call__')
     def test_identity_configuration(self, __call__):
         __call__.return_value = {
             'service_port': 'port',
