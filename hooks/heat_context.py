@@ -43,6 +43,7 @@ def get_encryption_key():
             encryption = pwgen(16)
         with open(encryption_path, 'w') as enc:
             enc.write(encryption)
+    return encryption
 
 
 class EncryptionContext(context.OSContextGenerator):
