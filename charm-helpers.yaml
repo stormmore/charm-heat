@@ -4,6 +4,7 @@ include:
     - core
     - fetch
     - contrib.openstack|inc=*
+    - contrib.python.packages
     - contrib.storage
     - contrib.network.ip
     - contrib.hahelpers:
