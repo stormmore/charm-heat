@@ -30,6 +30,7 @@ TEMPLATES = 'templates/'
 
 BASE_PACKAGES = [
     'python-keystoneclient',
+    'python-six',
     'uuid',
 ]
 
