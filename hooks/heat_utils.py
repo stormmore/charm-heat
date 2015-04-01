@@ -71,11 +71,11 @@ CONFIG_FILES = OrderedDict([
         'contexts': [HeatIdentityServiceContext()],
     }),
     (HTTPS_APACHE_CONF, {
-        'hook_contexts': [HeatApacheSSLContext()],
+        'contexts': [HeatApacheSSLContext()],
         'services': ['apache2'],
     }),
     (HTTPS_APACHE_24_CONF, {
-        'hook_contexts': [HeatApacheSSLContext()],
+        'contexts': [HeatApacheSSLContext()],
         'services': ['apache2'],
     })
 ])
@@ -92,10 +92,10 @@ def register_configs():
 
     if os.path.exists('/etc/apache2/conf-available'):
         configs.register(HTTPS_APACHE_24_CONF,
-                         CONFIG_FILES[HTTPS_APACHE_24_CONF]['hook_contexts'])
+                         CONFIG_FILES[HTTPS_APACHE_24_CONF]['contexts'])
     else:
         configs.register(HTTPS_APACHE_CONF,
-                         CONFIG_FILES[HTTPS_APACHE_CONF]['hook_contexts'])
+                         CONFIG_FILES[HTTPS_APACHE_CONF]['contexts'])
 
     return configs
 
