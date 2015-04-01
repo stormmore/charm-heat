@@ -4,6 +4,7 @@
 # Authors:
 #  Yolanda Robla <yolanda.robla@canonical.com>
 #
+import os
 
 from collections import OrderedDict
 
@@ -24,7 +25,12 @@ from charmhelpers.core.hookenv import (
     config
 )
 
-import heat_context
+from heat_context import (
+    API_PORTS,
+    HeatIdentityServiceContext,
+    EncryptionContext,
+    HeatApacheSSLContext,
+)
 
 TEMPLATES = 'templates/'
 
@@ -40,14 +46,12 @@ BASE_SERVICES = [
     'heat-engine'
 ]
 
-API_PORTS = {
-    'heat-api-cfn': 8000,
-    'heat-api': 8004
-}
-
 HEAT_DIR = '/etc/heat'
 HEAT_CONF = '/etc/heat/heat.conf'
 HEAT_API_PASTE = '/etc/heat/api-paste.ini'
+HTTPS_APACHE_CONF = '/etc/apache2/sites-available/openstack_https_frontend'
+HTTPS_APACHE_24_CONF = os.path.join('/etc/apache2/sites-available',
+                                    'openstack_https_frontend.conf')
 
 CONFIG_FILES = OrderedDict([
     (HEAT_CONF, {
@@ -56,13 +60,21 @@ CONFIG_FILES = OrderedDict([
                      context.SharedDBContext(relation_prefix='heat',
                                              ssl_dir=HEAT_DIR),
                      context.OSConfigFlagContext(),
-                     heat_context.HeatIdentityServiceContext(),
-                     heat_context.EncryptionContext(),
+                     HeatIdentityServiceContext(),
+                     EncryptionContext(),
                      context.SyslogContext()]
     }),
     (HEAT_API_PASTE, {
         'services': [s for s in BASE_SERVICES if 'api' in s],
-        'contexts': [heat_context.HeatIdentityServiceContext()],
+        'contexts': [HeatIdentityServiceContext()],
+    }),
+    (HTTPS_APACHE_CONF, {
+        'hook_contexts': [HeatApacheSSLContext()],
+        'services': ['apache2'],
+    }),
+    (HTTPS_APACHE_24_CONF, {
+        'hook_contexts': [HeatApacheSSLContext()],
+        'services': ['apache2'],
     })
 ])
 
@@ -75,6 +87,13 @@ def register_configs():
     confs = [HEAT_CONF, HEAT_API_PASTE]
     for conf in confs:
         configs.register(conf, CONFIG_FILES[conf]['contexts'])
+
+    if os.path.exists('/etc/apache2/conf-available'):
+        configs.register(HTTPS_APACHE_24_CONF,
+                         CONFIG_FILES[HTTPS_APACHE_24_CONF]['hook_contexts'])
+    else:
+        configs.register(HTTPS_APACHE_CONF,
+                         CONFIG_FILES[HTTPS_APACHE_CONF]['hook_contexts'])
 
     return configs
 

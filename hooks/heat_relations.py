@@ -9,6 +9,7 @@
 
 import os
 import shutil
+import subprocess
 import sys
 
 from subprocess import check_call
@@ -25,7 +26,8 @@ from charmhelpers.core.hookenv import (
 )
 
 from charmhelpers.core.host import (
-    restart_on_change
+    restart_on_change,
+    service_reload,
 )
 
 from charmhelpers.fetch import (
@@ -49,7 +51,10 @@ from heat_utils import (
     register_configs,
     HEAT_CONF,
     HEAT_API_PASTE,
-    API_PORTS
+)
+
+from heat_context import (
+    API_PORTS,
 )
 
 from charmhelpers.payload.execd import execd_preinstall
@@ -114,6 +119,23 @@ def db_changed():
         return
     CONFIGS.write(HEAT_CONF)
     check_call(['heat-manage', 'db_sync'])
+
+
+def configure_https():
+    """Enables SSL API Apache config if appropriate."""
+    # need to write all to ensure changes to the entire request pipeline
+    # propagate (c-api, haprxy, apache)
+    CONFIGS.write_all()
+    if 'https' in CONFIGS.complete_contexts():
+        cmd = ['a2ensite', 'openstack_https_frontend']
+        subprocess.check_call(cmd)
+    else:
+        cmd = ['a2dissite', 'openstack_https_frontend']
+        subprocess.check_call(cmd)
+
+    # TODO: improve this by checking if local CN certs are available
+    # first then checking reload status (see LP #1433114).
+    service_reload('apache2', restart_on_failure=True)
 
 
 @hooks.hook('identity-service-relation-joined')
