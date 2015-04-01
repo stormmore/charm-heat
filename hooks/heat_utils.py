@@ -47,6 +47,7 @@ BASE_SERVICES = [
     'heat-engine'
 ]
 
+SVC = 'heat'
 HEAT_DIR = '/etc/heat'
 HEAT_CONF = '/etc/heat/heat.conf'
 HEAT_API_PASTE = '/etc/heat/api-paste.ini'
@@ -61,7 +62,7 @@ CONFIG_FILES = OrderedDict([
                      context.SharedDBContext(relation_prefix='heat',
                                              ssl_dir=HEAT_DIR),
                      context.OSConfigFlagContext(),
-                     HeatIdentityServiceContext(),
+                     HeatIdentityServiceContext(service=SVC, service_user=SVC),
                      EncryptionContext(),
                      context.SyslogContext()]
     }),
