@@ -6,6 +6,10 @@ from charmhelpers.core.host import pwgen
 
 
 HEAT_PATH = '/var/lib/heat/'
+API_PORTS = {
+    'heat-api-cfn': 8000,
+    'heat-api': 8004
+}
 
 
 def generate_ec2_tokens(protocol, host, port):
@@ -55,3 +59,9 @@ class EncryptionContext(context.OSContextGenerator):
         encryption = get_encryption_key()
         ctxt['encryption_key'] = encryption
         return ctxt
+
+
+class HeatApacheSSLContext(context.ApacheSSLContext):
+
+    external_ports = [API_PORTS['heat-api']]
+    service_namespace = 'heat'
