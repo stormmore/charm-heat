@@ -38,6 +38,7 @@ BASE_PACKAGES = [
     'python-keystoneclient',
     'python-six',
     'uuid',
+    'apache2'
 ]
 
 BASE_SERVICES = [
