@@ -75,8 +75,8 @@ CONFIG_FILES = OrderedDict([
         'contexts': [HeatIdentityServiceContext()],
     }),
     (HAPROXY_CONF, {
-        'hook_contexts': [context.HAProxyContext(singlenode_mode=True),
-                          HeatHAProxyContext()],
+        'contexts': [context.HAProxyContext(singlenode_mode=True),
+                     HeatHAProxyContext()],
         'services': ['haproxy'],
     }),
     (HTTPS_APACHE_CONF, {
