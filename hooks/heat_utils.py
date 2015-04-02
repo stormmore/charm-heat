@@ -30,6 +30,7 @@ from heat_context import (
     HeatIdentityServiceContext,
     EncryptionContext,
     HeatApacheSSLContext,
+    HeatHAProxyContext,
 )
 
 TEMPLATES = 'templates/'
@@ -38,7 +39,8 @@ BASE_PACKAGES = [
     'python-keystoneclient',
     'python-six',
     'uuid',
-    'apache2'
+    'apache2',
+    'haproxy',
 ]
 
 BASE_SERVICES = [
@@ -51,6 +53,7 @@ SVC = 'heat'
 HEAT_DIR = '/etc/heat'
 HEAT_CONF = '/etc/heat/heat.conf'
 HEAT_API_PASTE = '/etc/heat/api-paste.ini'
+HAPROXY_CONF = '/etc/haproxy/haproxy.cfg'
 HTTPS_APACHE_CONF = '/etc/apache2/sites-available/openstack_https_frontend'
 HTTPS_APACHE_24_CONF = os.path.join('/etc/apache2/sites-available',
                                     'openstack_https_frontend.conf')
@@ -63,12 +66,18 @@ CONFIG_FILES = OrderedDict([
                                              ssl_dir=HEAT_DIR),
                      context.OSConfigFlagContext(),
                      HeatIdentityServiceContext(service=SVC, service_user=SVC),
+                     HeatHAProxyContext(),
                      EncryptionContext(),
                      context.SyslogContext()]
     }),
     (HEAT_API_PASTE, {
         'services': [s for s in BASE_SERVICES if 'api' in s],
         'contexts': [HeatIdentityServiceContext()],
+    }),
+    (HAPROXY_CONF, {
+        'hook_contexts': [context.HAProxyContext(singlenode_mode=True),
+                          HeatHAProxyContext()],
+        'services': ['haproxy'],
     }),
     (HTTPS_APACHE_CONF, {
         'contexts': [HeatApacheSSLContext()],

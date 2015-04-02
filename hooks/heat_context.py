@@ -3,7 +3,10 @@ import os
 from charmhelpers.contrib.openstack import context
 from charmhelpers.core.hookenv import config
 from charmhelpers.core.host import pwgen
-
+from charmhelpers.contrib.hahelpers.cluster import (
+    determine_apache_port,
+    determine_api_port,
+)
 
 HEAT_PATH = '/var/lib/heat/'
 API_PORTS = {
@@ -58,6 +61,30 @@ class EncryptionContext(context.OSContextGenerator):
         # check if we have stored encryption key
         encryption = get_encryption_key()
         ctxt['encryption_key'] = encryption
+        return ctxt
+
+
+class HeatHAProxyContext(context.OSContextGenerator):
+    interfaces = ['heat-haproxy']
+
+    def __call__(self):
+        """Extends the main charmhelpers HAProxyContext with a port mapping
+        specific to this charm.
+        Also used to extend cinder.conf context with correct api_listening_port
+        """
+        haproxy_port = API_PORTS['heat-api']
+        api_port = determine_api_port(API_PORTS['heat-api'],
+                                      singlenode_mode=True)
+        api_cfn_port = determine_api_port(API_PORTS['heat-api-cfn'],
+                                          singlenode_mode=True)
+        apache_port = determine_apache_port(API_PORTS['heat-api'],
+                                            singlenode_mode=True)
+
+        ctxt = {
+            'service_ports': {'heat_api': [haproxy_port, apache_port]},
+            'api_listen_port': api_port,
+            'api_cfn_listen_port': api_cfn_port,
+        }
         return ctxt
 
 
