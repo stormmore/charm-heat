@@ -95,7 +95,7 @@ def register_configs():
     configs = templating.OSConfigRenderer(templates_dir=TEMPLATES,
                                           openstack_release=release)
 
-    confs = [HEAT_CONF, HEAT_API_PASTE]
+    confs = [HEAT_CONF, HEAT_API_PASTE, HAPROXY_CONF]
     for conf in confs:
         configs.register(conf, CONFIG_FILES[conf]['contexts'])
 
