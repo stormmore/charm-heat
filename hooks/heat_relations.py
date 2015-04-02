@@ -20,6 +20,7 @@ from charmhelpers.core.hookenv import (
     config,
     charm_dir,
     log,
+    relation_ids,
     relation_set,
     open_port,
     unit_get
@@ -50,7 +51,6 @@ from heat_utils import (
     determine_packages,
     register_configs,
     HEAT_CONF,
-    HEAT_API_PASTE,
 )
 
 from heat_context import (
@@ -87,6 +87,7 @@ def config_changed():
     if openstack_upgrade_available('heat-engine'):
         do_openstack_upgrade(CONFIGS)
     CONFIGS.write_all()
+    configure_https()
 
 
 @hooks.hook('amqp-relation-joined')
@@ -137,6 +138,9 @@ def configure_https():
     # first then checking reload status (see LP #1433114).
     service_reload('apache2', restart_on_failure=True)
 
+    for rid in relation_ids('identity-service'):
+        identity_joined(rid=rid)
+
 
 @hooks.hook('identity-service-relation-joined')
 def identity_joined(rid=None):
@@ -165,8 +169,9 @@ def identity_changed():
     if 'identity-service' not in CONFIGS.complete_contexts():
         log('identity-service relation incomplete. Peer not ready?')
         return
-    CONFIGS.write(HEAT_API_PASTE)
-    CONFIGS.write(HEAT_CONF)
+
+    CONFIGS.write_all()
+    configure_https()
 
 
 @hooks.hook('amqp-relation-broken',
