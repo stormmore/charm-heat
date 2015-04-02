@@ -73,15 +73,13 @@ class HeatHAProxyContext(context.OSContextGenerator):
         Also used to extend cinder.conf context with correct api_listening_port
         """
         haproxy_port = API_PORTS['heat-api']
-        api_port = determine_api_port(API_PORTS['heat-api'],
-                                      singlenode_mode=True)
-        apache_port = determine_apache_port(API_PORTS['heat-api'],
-                                            singlenode_mode=True)
+        api_port = determine_api_port(haproxy_port, singlenode_mode=True)
+        apache_port = determine_apache_port(haproxy_port, singlenode_mode=True)
 
-        haproxy_cfn_port = API_PORTS['heat-api']
-        api_cfn_port = determine_api_port(API_PORTS['heat-api-cfn'],
+        haproxy_cfn_port = API_PORTS['heat-api-cfn']
+        api_cfn_port = determine_api_port(haproxy_cfn_port,
                                           singlenode_mode=True)
-        apache_cfn_port = determine_apache_port(API_PORTS['heat-api'],
+        apache_cfn_port = determine_apache_port(haproxy_cfn_port,
                                                 singlenode_mode=True)
 
         ctxt = {
