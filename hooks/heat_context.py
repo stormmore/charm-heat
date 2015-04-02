@@ -75,13 +75,19 @@ class HeatHAProxyContext(context.OSContextGenerator):
         haproxy_port = API_PORTS['heat-api']
         api_port = determine_api_port(API_PORTS['heat-api'],
                                       singlenode_mode=True)
-        api_cfn_port = determine_api_port(API_PORTS['heat-api-cfn'],
-                                          singlenode_mode=True)
         apache_port = determine_apache_port(API_PORTS['heat-api'],
                                             singlenode_mode=True)
 
+        haproxy_cfn_port = API_PORTS['heat-api']
+        api_cfn_port = determine_api_port(API_PORTS['heat-api-cfn'],
+                                          singlenode_mode=True)
+        apache_cfn_port = determine_apache_port(API_PORTS['heat-api'],
+                                                singlenode_mode=True)
+
         ctxt = {
-            'service_ports': {'heat_api': [haproxy_port, apache_port]},
+            'service_ports': {'heat_api': [haproxy_port, apache_port],
+                              'heat_cfn_api': [haproxy_cfn_port,
+                                               apache_cfn_port]},
             'api_listen_port': api_port,
             'api_cfn_listen_port': api_cfn_port,
         }
@@ -90,5 +96,5 @@ class HeatHAProxyContext(context.OSContextGenerator):
 
 class HeatApacheSSLContext(context.ApacheSSLContext):
 
-    external_ports = [API_PORTS['heat-api']]
+    external_ports = API_PORTS.values()
     service_namespace = 'heat'
