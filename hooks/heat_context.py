@@ -3,9 +3,16 @@ import os
 from charmhelpers.contrib.openstack import context
 from charmhelpers.core.hookenv import config
 from charmhelpers.core.host import pwgen
-
+from charmhelpers.contrib.hahelpers.cluster import (
+    determine_apache_port,
+    determine_api_port,
+)
 
 HEAT_PATH = '/var/lib/heat/'
+API_PORTS = {
+    'heat-api-cfn': 8000,
+    'heat-api': 8004
+}
 
 
 def generate_ec2_tokens(protocol, host, port):
@@ -55,3 +62,37 @@ class EncryptionContext(context.OSContextGenerator):
         encryption = get_encryption_key()
         ctxt['encryption_key'] = encryption
         return ctxt
+
+
+class HeatHAProxyContext(context.OSContextGenerator):
+    interfaces = ['heat-haproxy']
+
+    def __call__(self):
+        """Extends the main charmhelpers HAProxyContext with a port mapping
+        specific to this charm.
+        Also used to extend cinder.conf context with correct api_listening_port
+        """
+        haproxy_port = API_PORTS['heat-api']
+        api_port = determine_api_port(haproxy_port, singlenode_mode=True)
+        apache_port = determine_apache_port(haproxy_port, singlenode_mode=True)
+
+        haproxy_cfn_port = API_PORTS['heat-api-cfn']
+        api_cfn_port = determine_api_port(haproxy_cfn_port,
+                                          singlenode_mode=True)
+        apache_cfn_port = determine_apache_port(haproxy_cfn_port,
+                                                singlenode_mode=True)
+
+        ctxt = {
+            'service_ports': {'heat_api': [haproxy_port, apache_port],
+                              'heat_cfn_api': [haproxy_cfn_port,
+                                               apache_cfn_port]},
+            'api_listen_port': api_port,
+            'api_cfn_listen_port': api_cfn_port,
+        }
+        return ctxt
+
+
+class HeatApacheSSLContext(context.ApacheSSLContext):
+
+    external_ports = API_PORTS.values()
+    service_namespace = 'heat'

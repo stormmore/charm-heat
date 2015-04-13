@@ -9,6 +9,7 @@
 
 import os
 import shutil
+import subprocess
 import sys
 
 from subprocess import check_call
@@ -19,13 +20,15 @@ from charmhelpers.core.hookenv import (
     config,
     charm_dir,
     log,
+    relation_ids,
     relation_set,
     open_port,
     unit_get
 )
 
 from charmhelpers.core.host import (
-    restart_on_change
+    restart_on_change,
+    service_reload,
 )
 
 from charmhelpers.fetch import (
@@ -48,8 +51,10 @@ from heat_utils import (
     determine_packages,
     register_configs,
     HEAT_CONF,
-    HEAT_API_PASTE,
-    API_PORTS
+)
+
+from heat_context import (
+    API_PORTS,
 )
 
 from charmhelpers.payload.execd import execd_preinstall
@@ -82,6 +87,7 @@ def config_changed():
     if openstack_upgrade_available('heat-engine'):
         do_openstack_upgrade(CONFIGS)
     CONFIGS.write_all()
+    configure_https()
 
 
 @hooks.hook('amqp-relation-joined')
@@ -116,6 +122,26 @@ def db_changed():
     check_call(['heat-manage', 'db_sync'])
 
 
+def configure_https():
+    """Enables SSL API Apache config if appropriate."""
+    # need to write all to ensure changes to the entire request pipeline
+    # propagate (c-api, haprxy, apache)
+    CONFIGS.write_all()
+    if 'https' in CONFIGS.complete_contexts():
+        cmd = ['a2ensite', 'openstack_https_frontend']
+        subprocess.check_call(cmd)
+    else:
+        cmd = ['a2dissite', 'openstack_https_frontend']
+        subprocess.check_call(cmd)
+
+    # TODO: improve this by checking if local CN certs are available
+    # first then checking reload status (see LP #1433114).
+    service_reload('apache2', restart_on_failure=True)
+
+    for rid in relation_ids('identity-service'):
+        identity_joined(rid=rid)
+
+
 @hooks.hook('identity-service-relation-joined')
 def identity_joined(rid=None):
     base_url = canonical_url(CONFIGS)
@@ -143,8 +169,9 @@ def identity_changed():
     if 'identity-service' not in CONFIGS.complete_contexts():
         log('identity-service relation incomplete. Peer not ready?')
         return
-    CONFIGS.write(HEAT_API_PASTE)
-    CONFIGS.write(HEAT_CONF)
+
+    CONFIGS.write_all()
+    configure_https()
 
 
 @hooks.hook('amqp-relation-broken',
