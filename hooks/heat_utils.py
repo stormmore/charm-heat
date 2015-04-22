@@ -38,8 +38,8 @@ TEMPLATES = 'templates/'
 BASE_PACKAGES = [
     'python-keystoneclient',
     'python-six',
-    'python-testscenarios',  # bug 1446507
     'python-testresources',  # bug 1446507
+    'python-testscenarios',  # bug 1446507
     'uuid',
     'apache2',
     'haproxy',
