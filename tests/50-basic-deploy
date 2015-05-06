@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+
+import amulet
+import unittest
+
+
+class TestDeployment(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        try:
+            cls.d = amulet.Deployment(series='trusty')
+            cls.d.add('heat')
+            cls.d.configure('heat', {'instance-user': 'ubuntu'})
+            cls.d.setup(timeout=1800)
+            cls.d.sentry.wait()
+
+            cls.u = cls.d.sentry.unit['heat/0']
+        except amulet.helpers.TimeoutError:
+            msg = "Environment wasn't stood up in time"
+            amulet.raise_status(amulet.SKIP, msg=msg)
+        except:
+            raise
+
+    # amulet.raise_status():
+    #   - amulet.PASS
+    #   - amulet.FAIL
+    #   - amulet.SKIP
+    # Each unit has the following methods:
+    #   - .info - An array of the information of that unit from Juju
+    #   - .file(PATH) - Get the details of a file on that unit
+    #   - .file_contents(PATH) - Get plain text output of PATH file from that unit
+    #   - .directory(PATH) - Get details of directory
+    #   - .directory_contents(PATH) - List files and folders in PATH on that unit
+    #   - .relation(relation, service:rel) - Get relation data from return service
+    #          add tests here to confirm service is up and working properly
+    #   - .run(something)
+    # For example, to confirm that it has a functioning HTTP server:
+    #     page = requests.get('http://{}'.format(self.unit.info['public-address']))
+    #     page.raise_for_status()
+    # More information on writing Amulet tests can be found at:
+    #     https://juju.ubuntu.com/docs/tools-amulet.html
+
+    def check_file_content(self, name, find):
+        """Check that the named file exists and contains the find text."""
+        stat = TestDeployment.u.file(name)
+        if stat is None:
+            msg = "Could not retrieve status of %s" % name
+            amulet.raise_status(amulet.FAIL, msg=msg)
+        content = TestDeployment.u.file_contents(name)
+        if content.find(find) < 0:
+            msg = "%s does not contain the required text (%s)" % (name, find)
+            amulet.raise_status(amulet.FAIL, msg=msg)
+            return False
+        else:
+            print("%s contains the required text (%s)" % (name, find))
+            return True
+
+    def test_instance_user(self):
+        """Check that /etc/heat/heat.conf has instance_user item"""
+        # finding only 'instance_user=' will catch comments too
+        self.check_file_content(name='/etc/heat/heat.conf', find='instance_user=ubuntu')
+
+
+if __name__ == '__main__':
+    unittest.main()

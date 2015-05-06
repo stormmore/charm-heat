@@ -21,4 +21,8 @@ sync: bin/charm_helpers_sync.py
 unit_test:
 	@$(PYTHON) /usr/bin/nosetests --nologcapture --with-coverage  unit_tests
 
+test:
+	@echo "Running amulet tests: "
+	@for f in tests/*; do $$f; done
+
 all: unit_test lint
