@@ -66,11 +66,13 @@ class HeatRelationTests(CharmTestCase):
                                              'heat-engine'], fatal=True)
         self.execd_preinstall.assert_called()
 
-    def test_config_changed_no_upgrade(self):
+    @patch.object(relations, 'configure_https')
+    def test_config_changed_no_upgrade(self, mock_configure_https):
         self.openstack_upgrade_available.return_value = False
         relations.config_changed()
 
-    def test_config_changed_with_upgrade(self):
+    @patch.object(relations, 'configure_https')
+    def test_config_changed_with_upgrade(self, mock_configure_https):
         self.openstack_upgrade_available.return_value = True
         relations.config_changed()
         self.assertTrue(self.do_openstack_upgrade.called)
@@ -177,11 +179,12 @@ class HeatRelationTests(CharmTestCase):
         }
         self.relation_set.assert_called_with(**ex)
 
+    @patch.object(relations, 'configure_https')
     @patch.object(relations, 'CONFIGS')
-    def test_identity_changed(self, configs):
+    def test_identity_changed(self, configs, mock_configure_https):
         configs.complete_contexts.return_value = ['identity-service']
         relations.identity_changed()
-        self.assertTrue(configs.write.called)
+        self.assertTrue(configs.write_all.called)
 
     @patch.object(relations, 'CONFIGS')
     def test_identity_changed_incomplete(self, configs):
