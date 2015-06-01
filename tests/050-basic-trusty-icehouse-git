@@ -1,9 +1,0 @@
-#!/usr/bin/python
-
-"""Amulet tests on a basic heat git deployment on trusty-icehouse."""
-
-from basic_deployment import HeatBasicDeployment
-
-if __name__ == '__main__':
-    deployment = HeatBasicDeployment(series='trusty', git=True)
-    deployment.run_tests()
