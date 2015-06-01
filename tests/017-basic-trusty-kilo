@@ -1,0 +1,11 @@
+#!/usr/bin/python
+
+"""Amulet tests on a basic heat deployment on trusty-kilo."""
+
+from basic_deployment import HeatBasicDeployment
+
+if __name__ == '__main__':
+    deployment = HeatBasicDeployment(series='trusty',
+                                     openstack='cloud:trusty-kilo',
+                                     source='cloud:trusty-updates/kilo')
+    deployment.run_tests()
