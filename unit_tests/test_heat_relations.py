@@ -18,7 +18,6 @@ utils.restart_map = _map
 TO_PATCH = [
     # charmhelpers.core.hookenv
     'Hooks',
-    'canonical_url',
     'config',
     'open_port',
     'relation_set',
@@ -141,10 +140,11 @@ class HeatRelationTests(CharmTestCase):
         relations.relation_broken()
         self.assertTrue(configs.write_all.called)
 
-    def test_identity_service_joined(self):
+    @patch.object(relations, 'canonical_url')
+    def test_identity_service_joined(self, _canonical_url):
         "It properly requests unclustered endpoint via identity-service"
         self.unit_get.return_value = 'heatnode1'
-        self.canonical_url.return_value = 'http://heatnode1'
+        _canonical_url.return_value = 'http://heatnode1'
         relations.identity_joined()
         expected = {
             'heat_service': 'heat',
@@ -161,8 +161,9 @@ class HeatRelationTests(CharmTestCase):
         }
         self.relation_set.assert_called_with(**expected)
 
-    def test_identity_service_joined_with_relation_id(self):
-        self.canonical_url.return_value = 'http://heatnode1'
+    @patch.object(relations, 'canonical_url')
+    def test_identity_service_joined_with_relation_id(self, _canonical_url):
+        _canonical_url.return_value = 'http://heatnode1'
         relations.identity_joined(rid='identity-service:0')
         ex = {
             'heat_service': 'heat',
@@ -178,6 +179,33 @@ class HeatRelationTests(CharmTestCase):
             'relation_id': 'identity-service:0',
         }
         self.relation_set.assert_called_with(**ex)
+
+    @patch('charmhelpers.contrib.openstack.ip.unit_get',
+           lambda *args: 'heatnode1')
+    @patch('charmhelpers.contrib.openstack.ip.is_clustered',
+           lambda *args: False)
+    @patch('charmhelpers.contrib.openstack.ip.service_name')
+    @patch('charmhelpers.contrib.openstack.ip.config')
+    def test_identity_service_public_address_override(self, ip_config,
+                                                      _service_name):
+        ip_config.side_effect = self.test_config.get
+        _service_name.return_value = 'heat'
+        self.test_config.set('os-public-hostname', 'heat.example.org')
+        relations.identity_joined(rid='identity-service:0')
+        exp = {
+            'heat_service': 'heat',
+            'heat_region': 'RegionOne',
+            'heat_public_url': 'http://heat.example.org:8004/v1/$(tenant_id)s',
+            'heat_admin_url': 'http://heatnode1:8004/v1/$(tenant_id)s',
+            'heat_internal_url': 'http://heatnode1:8004/v1/$(tenant_id)s',
+            'heat-cfn_service': 'heat-cfn',
+            'heat-cfn_region': 'RegionOne',
+            'heat-cfn_public_url': 'http://heat.example.org:8000/v1',
+            'heat-cfn_admin_url': 'http://heatnode1:8000/v1',
+            'heat-cfn_internal_url': 'http://heatnode1:8000/v1',
+            'relation_id': 'identity-service:0',
+        }
+        self.relation_set.assert_called_with(**exp)
 
     @patch.object(relations, 'configure_https')
     @patch.object(relations, 'CONFIGS')
