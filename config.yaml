@@ -63,3 +63,15 @@ options:
     description: |
       SSL CA to use with the certificate and key provided - this is only
       required if you are providing a privately signed ssl_cert and ssl_key.
+  os-public-hostname:
+    type: string
+    default:
+    description: |
+      The hostname or address of the public endpoints created for heat
+      in the keystone identity provider.
+      .
+      This value will be used for public endpoints. For example, an
+      os-public-hostname set to 'heat.example.com' with ssl enabled will
+      create the following public endpoints for ceilometer.
+      .
+      https://ceilometer.example.com:8777/
