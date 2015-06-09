@@ -180,7 +180,8 @@ class AmuletUtils(object):
                 return ret
 
             for service_name in services_list:
-                if self.ubuntu_releases.index(release) >= systemd_switch:
+                if (self.ubuntu_releases.index(release) >= systemd_switch or
+                        service_name == "rabbitmq-server"):
                     # init is systemd
                     cmd = 'sudo service {} status'.format(service_name)
                 elif self.ubuntu_releases.index(release) < systemd_switch:
