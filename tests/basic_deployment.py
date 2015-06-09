@@ -127,7 +127,6 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
         self.rabbitmq_sentry = self.d.sentry.unit['rabbitmq-server/0']
         self.nova_compute_sentry = self.d.sentry.unit['nova-compute/0']
         self.glance_sentry = self.d.sentry.unit['glance/0']
-
         u.log.debug('openstack release val: {}'.format(
             self._get_openstack_release()))
         u.log.debug('openstack release str: {}'.format(
@@ -178,20 +177,20 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
     def test_100_services(self):
         """Verify the expected services are running on the corresponding
            service units."""
-        commands = {
-            self.heat_sentry: ['status heat-api',
-                               'status heat-api-cfn',
-                               'status heat-engine'],
-            self.mysql_sentry: ['status mysql'],
-            self.rabbitmq_sentry: ['sudo service rabbitmq-server status'],
-            self.nova_compute_sentry: ['status nova-compute',
-                                       'status nova-network',
-                                       'status nova-api'],
-            self.keystone_sentry: ['status keystone'],
-            self.glance_sentry: ['status glance-registry', 'status glance-api']
+        service_names = {
+            self.heat_sentry: ['heat-api',
+                               'heat-api-cfn',
+                               'heat-engine'],
+            self.mysql_sentry: ['mysql'],
+            self.rabbitmq_sentry: ['rabbitmq-server'],
+            self.nova_compute_sentry: ['nova-compute',
+                                       'nova-network',
+                                       'nova-api'],
+            self.keystone_sentry: ['keystone'],
+            self.glance_sentry: ['glance-registry', 'glance-api']
         }
 
-        ret = u.validate_services(commands)
+        ret = u.validate_services_by_name(service_names)
         if ret:
             amulet.raise_status(amulet.FAIL, msg=ret)
 
@@ -209,10 +208,15 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
         if self._get_openstack_release() >= self.precise_folsom:
             endpoint_vol['id'] = u.not_null
             endpoint_id['id'] = u.not_null
-        expected = {'s3': [endpoint_vol], 'compute': [endpoint_vol],
-                    'ec2': [endpoint_vol], 'identity': [endpoint_id]}
-        actual = self.keystone.service_catalog.get_endpoints()
+        expected = {'compute': [endpoint_vol], 'orchestration': [endpoint_vol],
+                    'image': [endpoint_vol], 'identity': [endpoint_id]}
 
+        if self._get_openstack_release() <= self.trusty_juno:
+            # Before Kilo
+            expected['s3'] = [endpoint_vol]
+            expected['ec2'] = [endpoint_vol]
+
+        actual = self.keystone.service_catalog.get_endpoints()
         ret = u.validate_svc_catalog_endpoint_data(expected, actual)
         if ret:
             amulet.raise_status(amulet.FAIL, msg=ret)
@@ -221,7 +225,14 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
         """Verify the heat api endpoint data."""
         u.log.debug('Checking api endpoint data...')
         endpoints = self.keystone.endpoints.list()
-        admin_port = internal_port = public_port = '3333'
+
+        if self._get_openstack_release() <= self.trusty_juno:
+            # Before Kilo
+            admin_port = internal_port = public_port = '3333'
+        else:
+            # Kilo and later
+            admin_port = internal_port = public_port = '8004'
+
         expected = {'id': u.not_null,
                     'region': 'RegionOne',
                     'adminurl': u.valid_url,
@@ -352,28 +363,14 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
             },
         }
 
-        if self._get_openstack_release() >= self.trusty_kilo:
-            # Kilo or later
-            expected.update(
-                {
-                    'oslo_messaging_rabbit': {
-                        'rabbit_userid': 'heat',
-                        'rabbit_virtual_host': 'openstack',
-                        'rabbit_password': rmq_rel['password'],
-                        'rabbit_host': rmq_rel['hostname']
-                    }
-                }
-            )
-        else:
-            # Juno or earlier
-            expected['DEFAULT'].update(
-                {
-                    'rabbit_userid': 'heat',
-                    'rabbit_virtual_host': 'openstack',
-                    'rabbit_password': rmq_rel['password'],
-                    'rabbit_host': rmq_rel['hostname']
-                }
-            )
+        expected['DEFAULT'].update(
+            {
+                'rabbit_userid': 'heat',
+                'rabbit_virtual_host': 'openstack',
+                'rabbit_password': rmq_rel['password'],
+                'rabbit_host': rmq_rel['hostname']
+            }
+        )
 
         for section, pairs in expected.iteritems():
             ret = u.validate_config_data(unit, conf, section, pairs)
@@ -490,9 +487,9 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
         # /!\ Heat stacks reach a COMPLETE status even when nova cannot
         # find resources (a valid hypervisor) to fit the instance, in
         # which case the heat stack self-deletes!  Confirm anyway...
-        ret = u.thing_reaches_status(self.heat.stacks, _stack_id,
-                                     expected_stat="COMPLETE",
-                                     msg="Stack status wait")
+        ret = u.resource_reaches_status(self.heat.stacks, _stack_id,
+                                        expected_stat="COMPLETE",
+                                        msg="Stack status wait")
         _stacks = list(self.heat.stacks.list())
         u.log.debug('All stacks: {}'.format(_stacks))
         if not ret:
@@ -531,9 +528,9 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
             amulet.raise_status(amulet.FAIL, msg=msg)
 
         # Confirm nova instance reaches ACTIVE status.
-        ret = u.thing_reaches_status(self.nova.servers, _server_id,
-                                     expected_stat="ACTIVE",
-                                     msg="nova instance")
+        ret = u.resource_reaches_status(self.nova.servers, _server_id,
+                                        expected_stat="ACTIVE",
+                                        msg="nova instance")
         if not ret:
             msg = 'Nova compute instance failed to reach expected state.'
             amulet.raise_status(amulet.FAIL, msg=msg)
@@ -541,18 +538,18 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
     def test_490_heat_stack_delete(self):
         """Delete a heat stack, verify."""
         u.log.debug('Deleting heat stack...')
-        u.delete_thing(self.heat.stacks, STACK_NAME, msg="heat stack")
+        u.delete_resource(self.heat.stacks, STACK_NAME, msg="heat stack")
 
     def test_491_image_delete(self):
         """Delete that image."""
         u.log.debug('Deleting glance image...')
         image = self.nova.images.find(name=IMAGE_NAME)
-        u.delete_thing(self.nova.images, image, msg="glance image")
+        u.delete_resource(self.nova.images, image, msg="glance image")
 
     def test_492_keypair_delete(self):
         """Delete that keypair."""
         u.log.debug('Deleting keypair...')
-        u.delete_thing(self.nova.keypairs, KEYPAIR_NAME, msg="nova keypair")
+        u.delete_resource(self.nova.keypairs, KEYPAIR_NAME, msg="nova keypair")
 
     def test_900_heat_restart_on_config_change(self):
         """Verify that the specified services are restarted when the config
