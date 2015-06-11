@@ -41,8 +41,11 @@ from charmhelpers.contrib.openstack.utils import (
     openstack_upgrade_available
 )
 
-from charmhelpers.contrib.hahelpers.cluster import (
-    canonical_url
+from charmhelpers.contrib.openstack.ip import (
+    canonical_url,
+    ADMIN,
+    INTERNAL,
+    PUBLIC,
 )
 
 from heat_utils import (
@@ -144,20 +147,31 @@ def configure_https():
 
 @hooks.hook('identity-service-relation-joined')
 def identity_joined(rid=None):
-    base_url = canonical_url(CONFIGS)
-    api_url = '%s:8004/v1/$(tenant_id)s' % base_url
-    cfn_url = '%s:8000/v1' % base_url
+    public_url_base = canonical_url(CONFIGS, PUBLIC)
+    internal_url_base = canonical_url(CONFIGS, INTERNAL)
+    admin_url_base = canonical_url(CONFIGS, ADMIN)
+
+    api_url_template = '%s:8004/v1/$(tenant_id)s'
+    public_api_endpoint = (api_url_template % public_url_base)
+    internal_api_endpoint = (api_url_template % internal_url_base)
+    admin_api_endpoint = (api_url_template % admin_url_base)
+
+    cfn_url_template = '%s:8000/v1'
+    public_cfn_endpoint = (cfn_url_template % public_url_base)
+    internal_cfn_endpoint = (cfn_url_template % internal_url_base)
+    admin_cfn_endpoint = (cfn_url_template % admin_url_base)
+
     relation_data = {
         'heat_service': 'heat',
         'heat_region': config('region'),
-        'heat_public_url': api_url,
-        'heat_admin_url': api_url,
-        'heat_internal_url': api_url,
+        'heat_public_url': public_api_endpoint,
+        'heat_admin_url': admin_api_endpoint,
+        'heat_internal_url': internal_api_endpoint,
         'heat-cfn_service': 'heat-cfn',
         'heat-cfn_region': config('region'),
-        'heat-cfn_public_url': cfn_url,
-        'heat-cfn_admin_url': cfn_url,
-        'heat-cfn_internal_url': cfn_url
+        'heat-cfn_public_url': public_cfn_endpoint,
+        'heat-cfn_admin_url': admin_cfn_endpoint,
+        'heat-cfn_internal_url': internal_cfn_endpoint,
     }
 
     relation_set(relation_id=rid, **relation_data)
