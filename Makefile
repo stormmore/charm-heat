@@ -6,12 +6,9 @@ lint:
 	@flake8 --exclude hooks/charmhelpers hooks tests unit_tests
 	@charm proof
 
-unit_test:
-	@echo Unit tests...
-	@$(PYTHON) /usr/bin/nosetests --nologcapture --with-coverage unit_tests
-
-test: unit_test
+test:
 	@# Bundletester expects unit tests here.
+	@$(PYTHON) /usr/bin/nosetests --nologcapture --with-coverage unit_tests
 
 functional_test:
 	@echo Starting all functional, lint and unit tests...

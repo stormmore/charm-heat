@@ -2,34 +2,9 @@
 
 """
 Basic heat functional test.
-
-test_* methods are called in lexical sort order.
-
-Convention to ensure desired test order:
-    1xx service and endpoint checks
-    2xx relation checks
-    3xx config checks
-    4xx functional checks
-    9xx restarts and other final checks
-
-Common relation definitions:
-    - [ heat, mysql ]
-    - [ heat, keystone ]
-    - [ heat, rabbitmq-server ]
-
-Resultant relations of heat service:
-    relations:
-      amqp:
-      - rabbitmq-server
-      identity-service:
-      - keystone
-      shared-db:
-      - mysql
 """
 import amulet
-import os
 import time
-from heatclient.openstack.common.py3kcompat import urlutils
 from heatclient.common import template_utils
 
 from charmhelpers.contrib.openstack.amulet.deployment import (
@@ -153,26 +128,140 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
         # Authenticate admin with heat endpoint
         self.heat = u.authenticate_heat_admin(self.keystone)
 
-    def file_url(self, file_rel_path):
-        """Return file:// url for a file expressed as a relative path."""
-        file_abs_path = os.path.abspath(file_rel_path)
-        file_url = urlutils.urljoin('file:',
-                                    urlutils.pathname2url(file_abs_path))
-        return file_url
+    def _image_create(self):
+        """Create an image to be used by the heat template, verify it exists"""
+        u.log.debug('Creating glance image ({})...'.format(IMAGE_NAME))
 
-    def create_or_get_keypair(self, keypair_name="testkey"):
-        """Create a new keypair, or return pointer if it already exists."""
+        # Create a new image
+        image_new = u.create_cirros_image(self.glance, IMAGE_NAME)
+
+        # Confirm image is created and has status of 'active'
+        if not image_new:
+            message = 'glance image create failed'
+            amulet.raise_status(amulet.FAIL, msg=message)
+
+        # Verify new image name
+        images_list = list(self.glance.images.list())
+        if images_list[0].name != IMAGE_NAME:
+            message = ('glance image create failed or unexpected '
+                       'image name {}'.format(images_list[0].name))
+            amulet.raise_status(amulet.FAIL, msg=message)
+
+    def _keypair_create(self):
+        """Create a keypair to be used by the heat template,
+           or get a keypair if it exists."""
+        self.keypair = u.create_or_get_keypair(self.nova,
+                                               keypair_name=KEYPAIR_NAME)
+        if not self.keypair:
+            msg = 'Failed to create or get keypair.'
+            amulet.raise_status(amulet.FAIL, msg=msg)
+        u.log.debug("Keypair: {} {}".format(self.keypair.id,
+                                            self.keypair.fingerprint))
+
+    def _stack_create(self):
+        """Create a heat stack from a basic heat template, verify its status"""
+        u.log.debug('Creating heat stack...')
+
+        t_url = u.file_to_url(TEMPLATE_REL_PATH)
+        r_req = self.heat.http_client.raw_request
+        u.log.debug('template url: {}'.format(t_url))
+
+        t_files, template = template_utils.get_template_contents(t_url, r_req)
+        env_files, env = template_utils.process_environment_and_files(
+            env_path=None)
+
+        fields = {
+            'stack_name': STACK_NAME,
+            'timeout_mins': '15',
+            'disable_rollback': False,
+            'parameters': {
+                'admin_pass': 'Ubuntu',
+                'key_name': KEYPAIR_NAME,
+                'image': IMAGE_NAME
+            },
+            'template': template,
+            'files': dict(list(t_files.items()) + list(env_files.items())),
+            'environment': env
+        }
+
+        # Create the stack.
         try:
-            _keypair = self.nova.keypairs.get(keypair_name)
-            u.log.debug('Keypair ({}) already exists, '
-                        'using it.'.format(keypair_name))
-            return _keypair
-        except:
-            u.log.debug('Keypair ({}) does not exist, '
-                        'creating it.'.format(keypair_name))
+            _stack = self.heat.stacks.create(**fields)
+            u.log.debug('Stack data: {}'.format(_stack))
+            _stack_id = _stack['stack']['id']
+            u.log.debug('Creating new stack, ID: {}'.format(_stack_id))
+        except Exception as e:
+            # Generally, an api or cloud config error if this is hit.
+            msg = 'Failed to create heat stack: {}'.format(e)
+            amulet.raise_status(amulet.FAIL, msg=msg)
 
-        _keypair = self.nova.keypairs.create(name=keypair_name)
-        return _keypair
+        # Confirm stack reaches COMPLETE status.
+        # /!\ Heat stacks reach a COMPLETE status even when nova cannot
+        # find resources (a valid hypervisor) to fit the instance, in
+        # which case the heat stack self-deletes!  Confirm anyway...
+        ret = u.resource_reaches_status(self.heat.stacks, _stack_id,
+                                        expected_stat="COMPLETE",
+                                        msg="Stack status wait")
+        _stacks = list(self.heat.stacks.list())
+        u.log.debug('All stacks: {}'.format(_stacks))
+        if not ret:
+            msg = 'Heat stack failed to reach expected state.'
+            amulet.raise_status(amulet.FAIL, msg=msg)
+
+        # Confirm stack still exists.
+        try:
+            _stack = self.heat.stacks.get(STACK_NAME)
+        except Exception as e:
+            # Generally, a resource availability issue if this is hit.
+            msg = 'Failed to get heat stack: {}'.format(e)
+            amulet.raise_status(amulet.FAIL, msg=msg)
+
+        # Confirm stack name.
+        u.log.debug('Expected, actual stack name: {}, '
+                    '{}'.format(STACK_NAME, _stack.stack_name))
+        if STACK_NAME != _stack.stack_name:
+            msg = 'Stack name mismatch, {} != {}'.format(STACK_NAME,
+                                                         _stack.stack_name)
+            amulet.raise_status(amulet.FAIL, msg=msg)
+
+    def _stack_resource_compute(self):
+        """Confirm that the stack has created a subsequent nova
+           compute resource, and confirm its status."""
+        u.log.debug('Confirming heat stack resource status...')
+
+        # Confirm existence of a heat-generated nova compute resource.
+        _resource = self.heat.resources.get(STACK_NAME, RESOURCE_TYPE)
+        _server_id = _resource.physical_resource_id
+        if _server_id:
+            u.log.debug('Heat template spawned nova instance, '
+                        'ID: {}'.format(_server_id))
+        else:
+            msg = 'Stack failed to spawn a nova compute resource (instance).'
+            amulet.raise_status(amulet.FAIL, msg=msg)
+
+        # Confirm nova instance reaches ACTIVE status.
+        ret = u.resource_reaches_status(self.nova.servers, _server_id,
+                                        expected_stat="ACTIVE",
+                                        msg="nova instance")
+        if not ret:
+            msg = 'Nova compute instance failed to reach expected state.'
+            amulet.raise_status(amulet.FAIL, msg=msg)
+
+    def _stack_delete(self):
+        """Delete a heat stack, verify."""
+        u.log.debug('Deleting heat stack...')
+        u.delete_resource(self.heat.stacks, STACK_NAME, msg="heat stack")
+
+    def _image_delete(self):
+        """Delete that image."""
+        u.log.debug('Deleting glance image...')
+        image = self.nova.images.find(name=IMAGE_NAME)
+        u.delete_resource(self.nova.images, image, msg="glance image")
+
+    def _keypair_delete(self):
+        """Delete that keypair."""
+        u.log.debug('Deleting keypair...')
+        u.delete_resource(self.nova.keypairs, KEYPAIR_NAME, msg="nova keypair")
 
     def test_100_services(self):
         """Verify the expected services are running on the corresponding
@@ -263,6 +352,23 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
             message = u.relation_error('heat:mysql shared-db', ret)
             amulet.raise_status(amulet.FAIL, msg=message)
 
+    def test_201_mysql_heat_shared_db_relation(self):
+        """Verify the mysql:heat shared-db relation data"""
+        u.log.debug('Checking mysql:heat shared-db relation data...')
+        unit = self.mysql_sentry
+        relation = ['shared-db', 'heat:shared-db']
+        expected = {
+            'private-address': u.valid_ip,
+            'db_host': u.valid_ip,
+            'heat_allowed_units': 'heat/0',
+            'heat_password': u.not_null
+        }
+
+        ret = u.validate_relation_data(unit, relation, expected)
+        if ret:
+            message = u.relation_error('mysql:heat shared-db', ret)
+            amulet.raise_status(amulet.FAIL, msg=message)
+
     def test_202_heat_keystone_identity_relation(self):
         """Verify the heat:keystone identity-service relation data"""
         u.log.debug('Checking heat:keystone identity-service relation data...')
@@ -285,6 +391,30 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
             message = u.relation_error('heat:keystone identity-service', ret)
             amulet.raise_status(amulet.FAIL, msg=message)
 
+    def test_203_keystone_heat_identity_relation(self):
+        """Verify the keystone:heat identity-service relation data"""
+        u.log.debug('Checking keystone:heat identity-service relation data...')
+        unit = self.keystone_sentry
+        relation = ['identity-service', 'heat:identity-service']
+        expected = {
+            'service_protocol': 'http',
+            'service_tenant': 'services',
+            'admin_token': 'ubuntutesting',
+            'service_password': u.not_null,
+            'service_port': '5000',
+            'auth_port': '35357',
+            'auth_protocol': 'http',
+            'private-address': u.valid_ip,
+            'auth_host': u.valid_ip,
+            'service_username': 'heat-cfn_heat',
+            'service_tenant_id': u.not_null,
+            'service_host': u.valid_ip
+        }
+        ret = u.validate_relation_data(unit, relation, expected)
+        if ret:
+            message = u.relation_error('keystone:heat identity-service', ret)
+            amulet.raise_status(amulet.FAIL, msg=message)
+
     def test_204_heat_rmq_amqp_relation(self):
         """Verify the heat:rabbitmq-server amqp relation data"""
         u.log.debug('Checking heat:rabbitmq-server amqp relation data...')
@@ -299,6 +429,22 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
         ret = u.validate_relation_data(unit, relation, expected)
         if ret:
             message = u.relation_error('heat:rabbitmq-server amqp', ret)
+            amulet.raise_status(amulet.FAIL, msg=message)
+
+    def test_205_rmq_heat_amqp_relation(self):
+        """Verify the rabbitmq-server:heat amqp relation data"""
+        u.log.debug('Checking rabbitmq-server:heat amqp relation data...')
+        unit = self.rabbitmq_sentry
+        relation = ['amqp', 'heat:amqp']
+        expected = {
+            'private-address': u.valid_ip,
+            'password': u.not_null,
+            'hostname': u.valid_ip,
+        }
+
+        ret = u.validate_relation_data(unit, relation, expected)
+        if ret:
+            message = u.relation_error('rabbitmq-server:heat amqp', ret)
             amulet.raise_status(amulet.FAIL, msg=message)
 
     def test_300_heat_config(self):
@@ -338,6 +484,10 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
                 'environment_dir': '/etc/heat/environment.d',
                 'deferred_auth_method': 'password',
                 'host': 'heat',
+                'rabbit_userid': 'heat',
+                'rabbit_virtual_host': 'openstack',
+                'rabbit_password': rmq_rel['password'],
+                'rabbit_host': rmq_rel['hostname']
             },
             'keystone_authtoken': {
                 'auth_uri': auth_uri,
@@ -363,15 +513,6 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
             },
         }
 
-        expected['DEFAULT'].update(
-            {
-                'rabbit_userid': 'heat',
-                'rabbit_virtual_host': 'openstack',
-                'rabbit_password': rmq_rel['password'],
-                'rabbit_host': rmq_rel['hostname']
-            }
-        )
-
         for section, pairs in expected.iteritems():
             ret = u.validate_config_data(unit, conf, section, pairs)
             if ret:
@@ -379,7 +520,8 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
                 amulet.raise_status(amulet.FAIL, msg=message)
 
     def test_400_heat_resource_types_list(self):
-        """Check default heat resource list functionality."""
+        """Check default heat resource list behavior, also confirm
+           heat functionality."""
         u.log.debug('Checking default heat resouce list...')
         try:
             types = list(self.heat.resource_types.list())
@@ -390,7 +532,7 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
                 u.log.error('{}'.format(msg))
                 raise
             if len(types) > 0:
-                u.log.debug('Resource type list length is non-zero '
+                u.log.debug('Resource type list is populated '
                             '({}, ok).'.format(len(types)))
             else:
                 msg = 'Resource type list length is zero!'
@@ -402,7 +544,8 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
             raise
 
     def test_402_heat_stack_list(self):
-        """Check default heat stack list functionality."""
+        """Check default heat stack list behavior, also confirm
+           heat functionality."""
         u.log.debug('Checking default heat stack list...')
         try:
             stacks = list(self.heat.stacks.list())
@@ -417,139 +560,16 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
             u.log.error(msg)
             raise
 
-    def test_410_image_create(self):
-        """Create an image to be used by the heat template, verify it exists"""
-        u.log.debug('Creating glance image ({})...'.format(IMAGE_NAME))
-
-        # Create a new image
-        image_new = u.create_cirros_image(self.glance, IMAGE_NAME)
-
-        # Confirm image is created and has status of 'active'
-        if not image_new:
-            message = 'glance image create failed'
-            amulet.raise_status(amulet.FAIL, msg=message)
-
-        # Verify new image name
-        images_list = list(self.glance.images.list())
-        if images_list[0].name != IMAGE_NAME:
-            message = ('glance image create failed or unexpected '
-                       'image name {}'.format(images_list[0].name))
-            amulet.raise_status(amulet.FAIL, msg=message)
-
-    def test_411_nova_keypair_create(self):
-        """Create a keypair to be used by the heat template,
-           or get a keypair if it exists."""
-        self.keypair = self.create_or_get_keypair(keypair_name=KEYPAIR_NAME)
-        if not self.keypair:
-            msg = 'Failed to create or get keypair.'
-            amulet.raise_status(amulet.FAIL, msg=msg)
-        u.log.debug("Keypair: {} {}".format(self.keypair.id,
-                                            self.keypair.fingerprint))
-
-    def test_412_heat_stack_create(self):
-        """Create a heat stack from a basic heat template, verify its status"""
-        u.log.debug('Creating heat stack...')
-
-        t_url = self.file_url(TEMPLATE_REL_PATH)
-        r_req = self.heat.http_client.raw_request
-        u.log.debug('template url: {}'.format(t_url))
-
-        t_files, template = template_utils.get_template_contents(t_url, r_req)
-        env_files, env = template_utils.process_environment_and_files(
-            env_path=None)
-
-        fields = {
-            'stack_name': STACK_NAME,
-            'timeout_mins': '15',
-            'disable_rollback': False,
-            'parameters': {
-                'admin_pass': 'Ubuntu',
-                'key_name': KEYPAIR_NAME,
-                'image': IMAGE_NAME
-            },
-            'template': template,
-            'files': dict(list(t_files.items()) + list(env_files.items())),
-            'environment': env
-        }
-
-        # Create the stack.
-        try:
-            _stack = self.heat.stacks.create(**fields)
-            u.log.debug('Stack data: {}'.format(_stack))
-            _stack_id = _stack['stack']['id']
-            u.log.debug('Creating new stack, ID: {}'.format(_stack_id))
-        except Exception as e:
-            # Generally, an api or cloud config error if this is hit.
-            msg = 'Failed to create heat stack: {}'.format(e)
-            amulet.raise_status(amulet.FAIL, msg=msg)
-
-        # Confirm stack reaches COMPLETE status.
-        # /!\ Heat stacks reach a COMPLETE status even when nova cannot
-        # find resources (a valid hypervisor) to fit the instance, in
-        # which case the heat stack self-deletes!  Confirm anyway...
-        ret = u.resource_reaches_status(self.heat.stacks, _stack_id,
-                                        expected_stat="COMPLETE",
-                                        msg="Stack status wait")
-        _stacks = list(self.heat.stacks.list())
-        u.log.debug('All stacks: {}'.format(_stacks))
-        if not ret:
-            msg = 'Heat stack failed to reach expected state.'
-            amulet.raise_status(amulet.FAIL, msg=msg)
-
-        # Confirm stack still exists.
-        try:
-            _stack = self.heat.stacks.get(STACK_NAME)
-        except Exception as e:
-            # Generally, a resource availability issue if this is hit.
-            msg = 'Failed to get heat stack: {}'.format(e)
-            amulet.raise_status(amulet.FAIL, msg=msg)
-
-        # Confirm stack name.
-        u.log.debug('Expected, actual stack name: {}, '
-                    '{}'.format(STACK_NAME, _stack.stack_name))
-        if STACK_NAME != _stack.stack_name:
-            msg = 'Stack name mismatch, {} != {}'.format(STACK_NAME,
-                                                         _stack.stack_name)
-            amulet.raise_status(amulet.FAIL, msg=msg)
-
-    def test_413_heat_stack_resource_compute(self):
-        """Confirm that the stack has created a subsequent nova
-           compute resource, and confirm its status."""
-        u.log.debug('Confirming heat stack resource status...')
-
-        # Confirm existence of a heat-generated nova compute resource.
-        _resource = self.heat.resources.get(STACK_NAME, RESOURCE_TYPE)
-        _server_id = _resource.physical_resource_id
-        if _server_id:
-            u.log.debug('Heat template spawned nova instance, '
-                        'ID: {}'.format(_server_id))
-        else:
-            msg = 'Stack failed to spawn a nova compute resource (instance).'
-            amulet.raise_status(amulet.FAIL, msg=msg)
-
-        # Confirm nova instance reaches ACTIVE status.
-        ret = u.resource_reaches_status(self.nova.servers, _server_id,
-                                        expected_stat="ACTIVE",
-                                        msg="nova instance")
-        if not ret:
-            msg = 'Nova compute instance failed to reach expected state.'
-            amulet.raise_status(amulet.FAIL, msg=msg)
-
-    def test_490_heat_stack_delete(self):
-        """Delete a heat stack, verify."""
-        u.log.debug('Deleting heat stack...')
-        u.delete_resource(self.heat.stacks, STACK_NAME, msg="heat stack")
-
-    def test_491_image_delete(self):
-        """Delete that image."""
-        u.log.debug('Deleting glance image...')
-        image = self.nova.images.find(name=IMAGE_NAME)
-        u.delete_resource(self.nova.images, image, msg="glance image")
-
-    def test_492_keypair_delete(self):
-        """Delete that keypair."""
-        u.log.debug('Deleting keypair...')
-        u.delete_resource(self.nova.keypairs, KEYPAIR_NAME, msg="nova keypair")
+    def test_410_heat_stack_create_delete(self):
+        """Create a heat stack from template, confirm that a corresponding
+           nova compute resource is spawned, delete stack."""
+        self._image_create()
+        self._keypair_create()
+        self._stack_create()
+        self._stack_resource_compute()
+        self._stack_delete()
+        self._image_delete()
+        self._keypair_delete()
 
     def test_900_heat_restart_on_config_change(self):
         """Verify that the specified services are restarted when the config
