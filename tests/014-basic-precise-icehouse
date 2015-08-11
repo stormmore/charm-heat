@@ -1,0 +1,11 @@
+#!/usr/bin/python
+
+"""Amulet tests on a basic heat deployment on precise-icehouse."""
+
+from basic_deployment import HeatBasicDeployment
+
+if __name__ == '__main__':
+    deployment = HeatBasicDeployment(series='precise',
+                                     openstack='cloud:precise-icehouse',
+                                     source='cloud:precise-updates/icehouse')
+    deployment.run_tests()
