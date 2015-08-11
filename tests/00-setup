@@ -1,5 +1,11 @@
 #!/bin/bash
 
-sudo add-apt-repository ppa:juju/stable -y
-sudo apt-get update
-sudo apt-get install amulet python3-requests -y
+set -ex
+
+sudo add-apt-repository --yes ppa:juju/stable
+sudo apt-get update --yes
+sudo apt-get install --yes python-amulet \
+                           python-distro-info \
+                           python-glanceclient \
+                           python-keystoneclient \
+                           python-novaclient
