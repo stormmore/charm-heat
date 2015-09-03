@@ -91,7 +91,7 @@ CONFIG_FILES = OrderedDict([
 
 
 def register_configs():
-    release = os_release('heat-engine')
+    release = os_release('heat-common')
     configs = templating.OSConfigRenderer(templates_dir=TEMPLATES,
                                           openstack_release=release)
 
