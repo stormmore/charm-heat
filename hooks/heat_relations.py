@@ -87,8 +87,9 @@ def install():
 @hooks.hook('config-changed')
 @restart_on_change(restart_map())
 def config_changed():
-    if openstack_upgrade_available('heat-common'):
-        do_openstack_upgrade(CONFIGS)
+    if not config('action-managed-upgrade'):
+        if openstack_upgrade_available('heat-common'):
+            do_openstack_upgrade(CONFIGS)
     CONFIGS.write_all()
     configure_https()
 
