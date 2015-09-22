@@ -7,15 +7,14 @@ from charmhelpers.contrib.openstack.utils import (
     do_action_openstack_upgrade,
 )
 
-from heat_relations import config_changed
+from heat_relations import (
+    config_changed,
+    CONFIGS,
+)
 
 from heat_utils import (
     do_openstack_upgrade,
-    register_configs
 )
-
-
-CONFIGS = register_configs()
 
 
 def openstack_upgrade():
