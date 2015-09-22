@@ -77,8 +77,9 @@ class HeatRelationTests(CharmTestCase):
         self.assertTrue(self.do_openstack_upgrade.called)
 
     @patch.object(relations, 'configure_https')
-    def test_config_changed_with_openstack_upgrade_action(self,
-                                                          mock_configure_https):
+    def test_config_changed_with_openstack_upgrade_action(
+            self,
+            mock_configure_https):
         self.openstack_upgrade_available.return_value = True
         self.test_config.set('action-managed-upgrade', True)
 
