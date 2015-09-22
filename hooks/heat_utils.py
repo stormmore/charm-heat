@@ -27,6 +27,11 @@ from charmhelpers.core.hookenv import (
     config
 )
 
+from charmhelpers.core.host import (
+    service_start,
+    service_stop,
+)
+
 from heat_context import (
     API_PORTS,
     HeatIdentityServiceContext,
@@ -173,7 +178,17 @@ def restart_map():
     return OrderedDict(_map)
 
 
+def services():
+    """Returns a list of services associate with this charm"""
+    _services = []
+    for v in restart_map().values():
+        _services = _services + v
+    return list(set(_services))
+
+
 def migrate_database():
     """Runs heat-manage to initialize a new database or migrate existing"""
     log('Migrating the heat database.')
+    [service_stop(s) for s in services()]
     check_call(['heat-manage', 'db_sync'])
+    [service_start(s) for s in services()]

@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from mock import patch, MagicMock
+from mock import patch, MagicMock, call
 from test_utils import CharmTestCase
 
 from charmhelpers.core import hookenv
@@ -21,6 +21,8 @@ TO_PATCH = [
     'apt_update',
     'apt_upgrade',
     'check_call',
+    'service_start',
+    'service_stop',
 ]
 
 
@@ -74,3 +76,7 @@ class HeatUtilsTests(CharmTestCase):
         utils.migrate_database()
         self.assertTrue(self.log.called)
         self.check_call.assert_called_with(['heat-manage', 'db_sync'])
+        expected = [call('heat-api'), call('heat-api-cfn'),
+                    call('heat-engine'), call('apache2')]
+        self.service_stop.assert_has_calls(expected, any_order=True)
+        self.service_start.assert_has_calls(expected, any_order=True)
