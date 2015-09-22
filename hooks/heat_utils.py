@@ -19,6 +19,7 @@ from charmhelpers.contrib.openstack.utils import (
 from charmhelpers.fetch import (
     apt_install,
     apt_update,
+    apt_upgrade,
 )
 
 from charmhelpers.core.hookenv import (
@@ -142,6 +143,7 @@ def do_openstack_upgrade(configs):
         '--option', 'Dpkg::Options::=--force-confdef',
     ]
     apt_update()
+    apt_upgrade(options=dpkg_opts, fatal=True, dist=True)
     packages = BASE_PACKAGES + BASE_SERVICES
     apt_install(packages=packages, options=dpkg_opts, fatal=True)
 
