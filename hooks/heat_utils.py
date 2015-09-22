@@ -7,6 +7,7 @@
 import os
 
 from collections import OrderedDict
+from subprocess import check_call
 
 from charmhelpers.contrib.openstack import context, templating
 
@@ -37,6 +38,7 @@ TEMPLATES = 'templates/'
 
 BASE_PACKAGES = [
     'python-keystoneclient',
+    'python-swiftclient',  # work-around missing epoch in juno heat package
     'python-six',
     'uuid',
     'apache2',
@@ -147,6 +149,8 @@ def do_openstack_upgrade(configs):
     configs.set_release(openstack_release=new_os_rel)
     configs.write_all()
 
+    migrate_database()
+
 
 def restart_map():
     """Restarts on config change.
@@ -165,3 +169,9 @@ def restart_map():
         if svcs:
             _map.append((f, svcs))
     return OrderedDict(_map)
+
+
+def migrate_database():
+    """Runs heat-manage to initialize a new database or migrate existing"""
+    log('Migrating the heat database.')
+    check_call(['heat-manage', 'db_sync'])

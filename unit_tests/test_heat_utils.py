@@ -18,7 +18,8 @@ TO_PATCH = [
     'get_os_codename_install_source',
     'configure_installation_source',
     'apt_install',
-    'apt_update'
+    'apt_update',
+    'check_call',
 ]
 
 
@@ -64,3 +65,8 @@ class HeatUtilsTests(CharmTestCase):
         self.assertEquals(cfn, 8000)
         cfn = utils.api_port('heat-api')
         self.assertEquals(cfn, 8004)
+
+    def test_migrate_database(self):
+        utils.migrate_database()
+        self.assertTrue(self.log.called)
+        self.check_call.assert_called_with(['heat-manage', 'db_sync'])

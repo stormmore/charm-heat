@@ -37,9 +37,9 @@ TO_PATCH = [
     'register_configs',
     'do_openstack_upgrade',
     # other
-    'check_call',
     'execd_preinstall',
-    'log'
+    'log',
+    'migrate_database',
 ]
 
 
@@ -99,6 +99,7 @@ class HeatRelationTests(CharmTestCase):
         configs.complete_contexts.return_value = ['shared-db']
         configs.write = MagicMock()
         relations.db_changed()
+        self.assertTrue(self.migrate_database.called)
 
     @patch.object(relations, 'CONFIGS')
     def test_db_changed(self, configs):

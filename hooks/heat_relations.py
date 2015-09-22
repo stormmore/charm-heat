@@ -12,8 +12,6 @@ import shutil
 import subprocess
 import sys
 
-from subprocess import check_call
-
 from charmhelpers.core.hookenv import (
     Hooks,
     UnregisteredHookError,
@@ -52,6 +50,7 @@ from heat_utils import (
     do_openstack_upgrade,
     restart_map,
     determine_packages,
+    migrate_database,
     register_configs,
     HEAT_CONF,
 )
@@ -123,7 +122,7 @@ def db_changed():
         log('shared-db relation incomplete. Peer not ready?')
         return
     CONFIGS.write(HEAT_CONF)
-    check_call(['heat-manage', 'db_sync'])
+    migrate_database()
 
 
 def configure_https():
