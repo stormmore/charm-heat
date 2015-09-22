@@ -20,7 +20,7 @@ class TestHeatUpgradeActions(CharmTestCase):
 
     def setUp(self):
         super(TestHeatUpgradeActions, self).setUp(openstack_upgrade,
-                                                    TO_PATCH)
+                                                  TO_PATCH)
 
     @patch('charmhelpers.contrib.openstack.utils.juju_log')
     @patch('charmhelpers.contrib.openstack.utils.config')
