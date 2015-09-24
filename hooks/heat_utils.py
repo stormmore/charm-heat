@@ -7,6 +7,7 @@
 import os
 
 from collections import OrderedDict
+from subprocess import check_call
 
 from charmhelpers.contrib.openstack import context, templating
 
@@ -18,11 +19,17 @@ from charmhelpers.contrib.openstack.utils import (
 from charmhelpers.fetch import (
     apt_install,
     apt_update,
+    apt_upgrade,
 )
 
 from charmhelpers.core.hookenv import (
     log,
     config
+)
+
+from charmhelpers.core.host import (
+    service_start,
+    service_stop,
 )
 
 from heat_context import (
@@ -37,6 +44,7 @@ TEMPLATES = 'templates/'
 
 BASE_PACKAGES = [
     'python-keystoneclient',
+    'python-swiftclient',  # work-around missing epoch in juno heat package
     'python-six',
     'uuid',
     'apache2',
@@ -140,12 +148,15 @@ def do_openstack_upgrade(configs):
         '--option', 'Dpkg::Options::=--force-confdef',
     ]
     apt_update()
+    apt_upgrade(options=dpkg_opts, fatal=True, dist=True)
     packages = BASE_PACKAGES + BASE_SERVICES
     apt_install(packages=packages, options=dpkg_opts, fatal=True)
 
     # set CONFIGS to load templates from new release and regenerate config
     configs.set_release(openstack_release=new_os_rel)
     configs.write_all()
+
+    migrate_database()
 
 
 def restart_map():
@@ -165,3 +176,19 @@ def restart_map():
         if svcs:
             _map.append((f, svcs))
     return OrderedDict(_map)
+
+
+def services():
+    """Returns a list of services associate with this charm"""
+    _services = []
+    for v in restart_map().values():
+        _services = _services + v
+    return list(set(_services))
+
+
+def migrate_database():
+    """Runs heat-manage to initialize a new database or migrate existing"""
+    log('Migrating the heat database.')
+    [service_stop(s) for s in services()]
+    check_call(['heat-manage', 'db_sync'])
+    [service_start(s) for s in services()]

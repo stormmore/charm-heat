@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from mock import patch, MagicMock
+from mock import patch, MagicMock, call
 from test_utils import CharmTestCase
 
 from charmhelpers.core import hookenv
@@ -18,7 +18,11 @@ TO_PATCH = [
     'get_os_codename_install_source',
     'configure_installation_source',
     'apt_install',
-    'apt_update'
+    'apt_update',
+    'apt_upgrade',
+    'check_call',
+    'service_start',
+    'service_stop',
 ]
 
 
@@ -56,11 +60,23 @@ class HeatUtilsTests(CharmTestCase):
         self.get_os_codename_install_source.return_value = 'havana'
         configs = MagicMock()
         utils.do_openstack_upgrade(configs)
-        self.assertTrue(configs.write_all.called)
+        self.assertTrue(self.apt_update.called)
+        self.assertTrue(self.apt_upgrade.called)
+        self.assertTrue(self.apt_install.called)
         configs.set_release.assert_called_with(openstack_release='havana')
+        self.assertTrue(configs.write_all.called)
 
     def test_api_ports(self):
         cfn = utils.api_port('heat-api-cfn')
         self.assertEquals(cfn, 8000)
         cfn = utils.api_port('heat-api')
         self.assertEquals(cfn, 8004)
+
+    def test_migrate_database(self):
+        utils.migrate_database()
+        self.assertTrue(self.log.called)
+        self.check_call.assert_called_with(['heat-manage', 'db_sync'])
+        expected = [call('heat-api'), call('heat-api-cfn'),
+                    call('heat-engine'), call('apache2')]
+        self.service_stop.assert_has_calls(expected, any_order=True)
+        self.service_start.assert_has_calls(expected, any_order=True)
