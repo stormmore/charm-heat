@@ -21,7 +21,8 @@ from charmhelpers.core.hookenv import (
     relation_ids,
     relation_set,
     open_port,
-    unit_get
+    unit_get,
+    status_set,
 )
 
 from charmhelpers.core.host import (
@@ -36,7 +37,8 @@ from charmhelpers.fetch import (
 
 from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
-    openstack_upgrade_available
+    openstack_upgrade_available,
+    set_os_workload_status,
 )
 
 from charmhelpers.contrib.openstack.ip import (
@@ -53,6 +55,7 @@ from heat_utils import (
     migrate_database,
     register_configs,
     HEAT_CONF,
+    REQUIRED_INTERFACES,
 )
 
 from heat_context import (
@@ -67,8 +70,10 @@ CONFIGS = register_configs()
 
 @hooks.hook('install.real')
 def install():
+    status_set('maintenance', 'Executing pre-install')
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
+    status_set('maintenance', 'Installing apt packages')
     apt_update()
     apt_install(determine_packages(), fatal=True)
 
@@ -88,6 +93,7 @@ def install():
 def config_changed():
     if not config('action-managed-upgrade'):
         if openstack_upgrade_available('heat-common'):
+            status_set('maintenance', 'Running openstack upgrade')
             do_openstack_upgrade(CONFIGS)
     CONFIGS.write_all()
     configure_https()
@@ -200,6 +206,7 @@ def main():
         hooks.execute(sys.argv)
     except UnregisteredHookError as e:
         log('Unknown hook {} - skipping.'.format(e))
+    set_os_workload_status(CONFIGS, REQUIRED_INTERFACES)
 
 
 if __name__ == '__main__':
