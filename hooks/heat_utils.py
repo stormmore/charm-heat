@@ -42,6 +42,14 @@ from heat_context import (
 
 TEMPLATES = 'templates/'
 
+# The interface is said to be satisfied if anyone of the interfaces in
+# the list has a complete context.
+REQUIRED_INTERFACES = {
+    'database': ['shared-db'],
+    'messaging': ['amqp'],
+    'identity': ['identity-service'],
+}
+
 BASE_PACKAGES = [
     'python-keystoneclient',
     'python-swiftclient',  # work-around missing epoch in juno heat package
