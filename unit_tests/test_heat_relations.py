@@ -31,6 +31,8 @@ TO_PATCH = [
     'openstack_upgrade_available',
     'determine_packages',
     'charm_dir',
+    'get_ipv6_addr',
+    'sync_db_with_multi_ipv6_addresses',
     # charmhelpers.contrib.hahelpers.cluster_utils
     # heat_utils
     'restart_map',
@@ -232,3 +234,13 @@ class HeatRelationTests(CharmTestCase):
         relations.identity_changed()
         self.assertTrue(self.log.called)
         self.assertFalse(configs.write.called)
+
+    def test_db_joined_with_ipv6(self):
+        'It properly requests access to a shared-db service'
+        self.unit_get.return_value = 'heatnode1'
+        self.get_ipv6_addr.return_value = ['2001:db8:1::1']
+        self.sync_db_with_multi_ipv6_addresses.return_value = MagicMock()
+        self.test_config.set('prefer-ipv6', True)
+        relations.db_joined()
+        self.sync_db_with_multi_ipv6_addresses.assert_called_with_once(
+            'heat', 'heat')
