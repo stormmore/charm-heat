@@ -44,7 +44,6 @@ from charmhelpers.contrib.openstack.utils import (
 
 from charmhelpers.contrib.openstack.ip import (
     canonical_url,
-    get_ipv6_addr,
     ADMIN,
     INTERNAL,
     PUBLIC,
