@@ -102,7 +102,8 @@ def config_changed():
         status_set('maintenance', 'configuring ipv6')
         setup_ipv6()
         sync_db_with_multi_ipv6_addresses(config('database'),
-                                          config('database-user'))
+                                          config('database-user'),
+                                          relation_prefix='heat')
 
     CONFIGS.write_all()
     configure_https()
@@ -127,7 +128,8 @@ def amqp_changed():
 def db_joined():
     if config('prefer-ipv6'):
         sync_db_with_multi_ipv6_addresses(config('database'),
-                                          config('database-user'))
+                                          config('database-user'),
+                                          relation_prefix='heat')
     else:
         relation_set(heat_database=config('database'),
                      heat_username=config('database-user'),
