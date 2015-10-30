@@ -84,7 +84,8 @@ CONFIG_FILES = OrderedDict([
                      HeatIdentityServiceContext(service=SVC, service_user=SVC),
                      HeatHAProxyContext(),
                      EncryptionContext(),
-                     context.SyslogContext()]
+                     context.SyslogContext(),
+                     context.LogLevelContext()]
     }),
     (HEAT_API_PASTE, {
         'services': [s for s in BASE_SERVICES if 'api' in s],
