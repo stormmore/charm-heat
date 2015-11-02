@@ -12,8 +12,6 @@ import shutil
 import subprocess
 import sys
 
-from subprocess import check_call
-
 from charmhelpers.core.hookenv import (
     Hooks,
     UnregisteredHookError,
@@ -23,7 +21,8 @@ from charmhelpers.core.hookenv import (
     relation_ids,
     relation_set,
     open_port,
-    unit_get
+    unit_get,
+    status_set,
 )
 
 from charmhelpers.core.host import (
@@ -38,7 +37,8 @@ from charmhelpers.fetch import (
 
 from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
-    openstack_upgrade_available
+    openstack_upgrade_available,
+    set_os_workload_status,
 )
 
 from charmhelpers.contrib.openstack.ip import (
@@ -52,8 +52,10 @@ from heat_utils import (
     do_openstack_upgrade,
     restart_map,
     determine_packages,
+    migrate_database,
     register_configs,
     HEAT_CONF,
+    REQUIRED_INTERFACES,
 )
 
 from heat_context import (
@@ -66,10 +68,12 @@ hooks = Hooks()
 CONFIGS = register_configs()
 
 
-@hooks.hook('install')
+@hooks.hook('install.real')
 def install():
+    status_set('maintenance', 'Executing pre-install')
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
+    status_set('maintenance', 'Installing apt packages')
     apt_update()
     apt_install(determine_packages(), fatal=True)
 
@@ -87,8 +91,10 @@ def install():
 @hooks.hook('config-changed')
 @restart_on_change(restart_map())
 def config_changed():
-    if openstack_upgrade_available('heat-engine'):
-        do_openstack_upgrade(CONFIGS)
+    if not config('action-managed-upgrade'):
+        if openstack_upgrade_available('heat-common'):
+            status_set('maintenance', 'Running openstack upgrade')
+            do_openstack_upgrade(CONFIGS)
     CONFIGS.write_all()
     configure_https()
 
@@ -122,7 +128,7 @@ def db_changed():
         log('shared-db relation incomplete. Peer not ready?')
         return
     CONFIGS.write(HEAT_CONF)
-    check_call(['heat-manage', 'db_sync'])
+    migrate_database()
 
 
 def configure_https():
@@ -200,6 +206,7 @@ def main():
         hooks.execute(sys.argv)
     except UnregisteredHookError as e:
         log('Unknown hook {} - skipping.'.format(e))
+    set_os_workload_status(CONFIGS, REQUIRED_INTERFACES)
 
 
 if __name__ == '__main__':

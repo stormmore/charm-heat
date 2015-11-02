@@ -2,13 +2,13 @@
 PYTHON := /usr/bin/env python
 
 lint:
-	@echo Lint inspections and charm proof...
-	@flake8 --exclude hooks/charmhelpers hooks tests unit_tests
+	@flake8 --exclude hooks/charmhelpers,tests/charmhelpers \
+        actions hooks unit_tests tests
 	@charm proof
 
 test:
 	@# Bundletester expects unit tests here.
-	@$(PYTHON) /usr/bin/nosetests --nologcapture --with-coverage unit_tests
+	@$(PYTHON) /usr/bin/nosetests -v --nologcapture --with-coverage unit_tests
 
 functional_test:
 	@echo Starting all functional, lint and unit tests...
@@ -23,6 +23,6 @@ sync: bin/charm_helpers_sync.py
 	@$(PYTHON) bin/charm_helpers_sync.py -c charm-helpers-hooks.yaml
 	@$(PYTHON) bin/charm_helpers_sync.py -c charm-helpers-tests.yaml
 
-publish: lint unit_test
+publish: lint test
 	bzr push lp:charms/heat
 	bzr push lp:charms/trusty/heat
