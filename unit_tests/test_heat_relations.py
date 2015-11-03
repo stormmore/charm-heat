@@ -63,7 +63,7 @@ class HeatRelationTests(CharmTestCase):
                                              'uuid', 'heat-api',
                                              'heat-api-cfn',
                                              'heat-engine'], fatal=True)
-        self.execd_preinstall.assert_called()
+        self.assertTrue(self.execd_preinstall.called)
 
     @patch.object(relations, 'configure_https')
     def test_config_changed_no_upgrade(self, mock_configure_https):
@@ -145,7 +145,7 @@ class HeatRelationTests(CharmTestCase):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = []
         relations.amqp_changed()
-        self.log.assert_called()
+        self.assertTrue(self.log.called)
 
     @patch.object(relations, 'CONFIGS')
     def test_relation_broken(self, configs):
