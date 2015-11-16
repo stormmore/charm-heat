@@ -1,4 +1,12 @@
 options:
+  debug:
+    default: False
+    type: boolean
+    description: Enable debug logging.
+  verbose:
+    default: False
+    type: boolean
+    description: Enable verbose logging.
   openstack-origin:
     default: distro
     type: string

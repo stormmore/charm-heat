@@ -87,6 +87,7 @@ CONFIG_FILES = OrderedDict([
                      HeatHAProxyContext(),
                      EncryptionContext(),
                      context.SyslogContext(),
+                     context.LogLevelContext(),
                      context.BindHostContext()]
     }),
     (HEAT_API_PASTE, {
