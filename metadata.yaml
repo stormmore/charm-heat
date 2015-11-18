@@ -1,6 +1,6 @@
 name: heat
 summary: OpenStack orchestration engine
-maintainer: Yolanda Robla <yolanda.robla@canonical.com>
+maintainer: OpenStack Charmers <openstack-charmers@lists.ubuntu.com>
 description: |
   Heat is the main project in the OpenStack Orchestration program. It implements an
   orchestration engine to launch multiple composite cloud applications based on
