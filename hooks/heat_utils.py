@@ -17,6 +17,7 @@ from charmhelpers.contrib.openstack.utils import (
     os_release)
 
 from charmhelpers.fetch import (
+    add_source,
     apt_install,
     apt_update,
     apt_upgrade,
@@ -24,10 +25,11 @@ from charmhelpers.fetch import (
 
 from charmhelpers.core.hookenv import (
     log,
-    config
+    config,
 )
 
 from charmhelpers.core.host import (
+    lsb_release,
     service_start,
     service_stop,
 )
@@ -86,7 +88,9 @@ CONFIG_FILES = OrderedDict([
                      HeatHAProxyContext(),
                      EncryptionContext(),
                      InstanceUserContext(),
-                     context.SyslogContext()]
+                     context.SyslogContext(),
+                     context.LogLevelContext(),
+                     context.BindHostContext()]
     }),
     (HEAT_API_PASTE, {
         'services': [s for s in BASE_SERVICES if 'api' in s],
@@ -202,3 +206,18 @@ def migrate_database():
     [service_stop(s) for s in services()]
     check_call(['heat-manage', 'db_sync'])
     [service_start(s) for s in services()]
+
+
+def setup_ipv6():
+    ubuntu_rel = lsb_release()['DISTRIB_CODENAME'].lower()
+    if ubuntu_rel < "trusty":
+        raise Exception("IPv6 is not supported in the charms for Ubuntu "
+                        "versions less than Trusty 14.04")
+
+    # Need haproxy >= 1.5.3 for ipv6 so for Trusty if we are <= Kilo we need to
+    # use trusty-backports otherwise we can use the UCA.
+    if ubuntu_rel == 'trusty' and os_release('heat-common') < 'liberty':
+        add_source('deb http://archive.ubuntu.com/ubuntu trusty-backports '
+                   'main')
+        apt_update()
+        apt_install('haproxy/trusty-backports', fatal=True)

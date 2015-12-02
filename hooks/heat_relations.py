@@ -39,6 +39,7 @@ from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
     openstack_upgrade_available,
     set_os_workload_status,
+    sync_db_with_multi_ipv6_addresses,
 )
 
 from charmhelpers.contrib.openstack.ip import (
@@ -56,6 +57,7 @@ from heat_utils import (
     register_configs,
     HEAT_CONF,
     REQUIRED_INTERFACES,
+    setup_ipv6,
 )
 
 from heat_context import (
@@ -95,6 +97,14 @@ def config_changed():
         if openstack_upgrade_available('heat-common'):
             status_set('maintenance', 'Running openstack upgrade')
             do_openstack_upgrade(CONFIGS)
+
+    if config('prefer-ipv6'):
+        status_set('maintenance', 'configuring ipv6')
+        setup_ipv6()
+        sync_db_with_multi_ipv6_addresses(config('database'),
+                                          config('database-user'),
+                                          relation_prefix='heat')
+
     CONFIGS.write_all()
     configure_https()
 
@@ -116,9 +126,14 @@ def amqp_changed():
 
 @hooks.hook('shared-db-relation-joined')
 def db_joined():
-    relation_set(heat_database=config('database'),
-                 heat_username=config('database-user'),
-                 heat_hostname=unit_get('private-address'))
+    if config('prefer-ipv6'):
+        sync_db_with_multi_ipv6_addresses(config('database'),
+                                          config('database-user'),
+                                          relation_prefix='heat')
+    else:
+        relation_set(heat_database=config('database'),
+                     heat_username=config('database-user'),
+                     heat_hostname=unit_get('private-address'))
 
 
 @hooks.hook('shared-db-relation-changed')
