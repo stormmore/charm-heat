@@ -4,7 +4,8 @@ from test_utils import CharmTestCase
 
 TO_PATCH = [
     'get_encryption_key',
-    'generate_ec2_tokens'
+    'generate_ec2_tokens',
+    'config'
 ]
 
 
@@ -18,6 +19,12 @@ class TestHeatContext(CharmTestCase):
         self.assertEquals(
             heat_context.EncryptionContext()(),
             {'encryption_key': 'key'})
+
+    def test_instance_user_empty_configuration(self):
+        self.config.return_value = None
+        self.assertEquals(
+            heat_context.InstanceUserContext()(),
+            {'instance_user': ''})
 
     @patch('charmhelpers.contrib.openstack.'
            'context.IdentityServiceContext.__call__')

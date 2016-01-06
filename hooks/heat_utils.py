@@ -38,6 +38,7 @@ from heat_context import (
     API_PORTS,
     HeatIdentityServiceContext,
     EncryptionContext,
+    InstanceUserContext,
     HeatApacheSSLContext,
     HeatHAProxyContext,
 )
@@ -86,6 +87,7 @@ CONFIG_FILES = OrderedDict([
                      HeatIdentityServiceContext(service=SVC, service_user=SVC),
                      HeatHAProxyContext(),
                      EncryptionContext(),
+                     InstanceUserContext(),
                      context.SyslogContext(),
                      context.LogLevelContext(),
                      context.BindHostContext()]
