@@ -40,6 +40,13 @@ options:
     default: heat
     type: string
     description: Database name
+  instance-user:
+    default:
+    type: string
+    description: |
+      The default user for new instances. This option is deprecated as of Juno.
+      If left empty, Heat will use the default user set up with your cloud
+      image (for OS::Nova::Server) or 'ec2-user' (for AWS::EC2::Instance).
   region:
     default: RegionOne
     type: string

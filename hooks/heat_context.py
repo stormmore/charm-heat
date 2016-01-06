@@ -96,3 +96,15 @@ class HeatApacheSSLContext(context.ApacheSSLContext):
 
     external_ports = API_PORTS.values()
     service_namespace = 'heat'
+
+
+class InstanceUserContext(context.OSContextGenerator):
+
+    def __call__(self):
+        ctxt = {}
+
+        instance_user = ''
+        if config('instance-user'):
+            instance_user = config('instance-user')
+        ctxt['instance_user'] = instance_user
+        return ctxt
