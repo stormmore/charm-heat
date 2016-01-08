@@ -1,0 +1,11 @@
+#!/usr/bin/python
+
+"""Amulet tests on a basic heat deployment on trusty-liberty."""
+
+from basic_deployment import HeatBasicDeployment
+
+if __name__ == '__main__':
+    deployment = HeatBasicDeployment(series='trusty',
+                                     openstack='cloud:trusty-liberty',
+                                     source='cloud:trusty-updates/liberty')
+    deployment.run_tests()
