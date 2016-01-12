@@ -1,9 +1,9 @@
 #!/usr/bin/python
 
-"""Amulet tests on a basic heat deployment on vivid-kilo."""
+"""Amulet tests on a basic heat deployment on wily-liberty."""
 
 from basic_deployment import HeatBasicDeployment
 
 if __name__ == '__main__':
-    deployment = HeatBasicDeployment(series='vivid')
+    deployment = HeatBasicDeployment(series='wily')
     deployment.run_tests()
