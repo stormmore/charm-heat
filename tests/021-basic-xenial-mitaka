@@ -1,0 +1,9 @@
+#!/usr/bin/python
+
+"""Amulet tests on a basic heat deployment on xenial-mitaka."""
+
+from basic_deployment import HeatBasicDeployment
+
+if __name__ == '__main__':
+    deployment = HeatBasicDeployment(series='xenial')
+    deployment.run_tests()
