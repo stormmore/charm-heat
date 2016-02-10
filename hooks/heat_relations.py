@@ -23,11 +23,15 @@ from charmhelpers.core.hookenv import (
     open_port,
     unit_get,
     status_set,
+    leader_get,
+    leader_set,
+    is_leader,
 )
 
 from charmhelpers.core.host import (
     restart_on_change,
     service_reload,
+    pwgen,
 )
 
 from charmhelpers.fetch import (
@@ -214,6 +218,12 @@ def identity_changed():
             'shared-db-relation-broken')
 def relation_broken():
     CONFIGS.write_all()
+
+
+@hooks.hook('leader-elected')
+def leader_elected():
+    if is_leader() and not leader_get('heat-domain-admin-passwd'):
+        leader_set('heat-domain-admin-passwd', pwgen(32))
 
 
 def main():

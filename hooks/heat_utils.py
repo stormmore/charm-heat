@@ -37,7 +37,7 @@ from charmhelpers.core.host import (
 from heat_context import (
     API_PORTS,
     HeatIdentityServiceContext,
-    EncryptionContext,
+    HeatSecurityContext,
     InstanceUserContext,
     HeatApacheSSLContext,
     HeatHAProxyContext,
@@ -86,7 +86,7 @@ CONFIG_FILES = OrderedDict([
                      context.OSConfigFlagContext(),
                      HeatIdentityServiceContext(service=SVC, service_user=SVC),
                      HeatHAProxyContext(),
-                     EncryptionContext(),
+                     HeatSecurityContext(),
                      InstanceUserContext(),
                      context.SyslogContext(),
                      context.LogLevelContext(),
