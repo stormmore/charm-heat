@@ -113,6 +113,11 @@ def config_changed():
     configure_https()
 
 
+@hooks.hook('upgrade-charm')
+def upgrade_charm():
+    leader_elected()
+
+
 @hooks.hook('amqp-relation-joined')
 def amqp_joined(relation_id=None):
     relation_set(relation_id=relation_id,
