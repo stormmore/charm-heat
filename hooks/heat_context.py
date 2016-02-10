@@ -1,7 +1,7 @@
 import os
 
 from charmhelpers.contrib.openstack import context
-from charmhelpers.core.hookenv import config
+from charmhelpers.core.hookenv import config, leader_get
 from charmhelpers.core.host import pwgen
 from charmhelpers.contrib.hahelpers.cluster import (
     determine_apache_port,
@@ -32,6 +32,7 @@ class HeatIdentityServiceContext(context.IdentityServiceContext):
                                          ctxt['service_host'],
                                          ctxt['service_port'])
         ctxt['keystone_ec2_url'] = ec2_tokens
+        ctxt['region'] = config('region')
         return ctxt
 
 
@@ -53,14 +54,15 @@ def get_encryption_key():
     return encryption
 
 
-class EncryptionContext(context.OSContextGenerator):
+class HeatSecurityContext(context.OSContextGenerator):
 
     def __call__(self):
         ctxt = {}
-
         # check if we have stored encryption key
         encryption = get_encryption_key()
         ctxt['encryption_key'] = encryption
+        ctxt['heat_domain_admin_passwd'] = \
+            leader_get('heat-domain-admin-passwd')
         return ctxt
 
 

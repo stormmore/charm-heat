@@ -5,7 +5,8 @@ from test_utils import CharmTestCase
 TO_PATCH = [
     'get_encryption_key',
     'generate_ec2_tokens',
-    'config'
+    'config',
+    'leader_get',
 ]
 
 
@@ -16,9 +17,12 @@ class TestHeatContext(CharmTestCase):
 
     def test_encryption_configuration(self):
         self.get_encryption_key.return_value = 'key'
+        self.leader_get.return_value = 'password'
         self.assertEquals(
-            heat_context.EncryptionContext()(),
-            {'encryption_key': 'key'})
+            heat_context.HeatSecurityContext()(),
+            {'encryption_key': 'key',
+             'heat_domain_admin_passwd': 'password'})
+        self.leader_get.assert_called_with('heat-domain-admin-passwd')
 
     def test_instance_user_empty_configuration(self):
         self.config.return_value = None

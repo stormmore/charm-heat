@@ -37,7 +37,7 @@ from charmhelpers.core.host import (
 from heat_context import (
     API_PORTS,
     HeatIdentityServiceContext,
-    EncryptionContext,
+    HeatSecurityContext,
     InstanceUserContext,
     HeatApacheSSLContext,
     HeatHAProxyContext,
@@ -76,6 +76,7 @@ HAPROXY_CONF = '/etc/haproxy/haproxy.cfg'
 HTTPS_APACHE_CONF = '/etc/apache2/sites-available/openstack_https_frontend'
 HTTPS_APACHE_24_CONF = os.path.join('/etc/apache2/sites-available',
                                     'openstack_https_frontend.conf')
+ADMIN_OPENRC = '/root/admin-openrc-v3'
 
 CONFIG_FILES = OrderedDict([
     (HEAT_CONF, {
@@ -86,7 +87,7 @@ CONFIG_FILES = OrderedDict([
                      context.OSConfigFlagContext(),
                      HeatIdentityServiceContext(service=SVC, service_user=SVC),
                      HeatHAProxyContext(),
-                     EncryptionContext(),
+                     HeatSecurityContext(),
                      InstanceUserContext(),
                      context.SyslogContext(),
                      context.LogLevelContext(),
@@ -108,7 +109,12 @@ CONFIG_FILES = OrderedDict([
     (HTTPS_APACHE_24_CONF, {
         'contexts': [HeatApacheSSLContext()],
         'services': ['apache2'],
-    })
+    }),
+    (ADMIN_OPENRC, {
+        'contexts': [HeatIdentityServiceContext(service=SVC,
+                                                service_user=SVC)],
+        'services': []
+    }),
 ])
 
 
@@ -117,7 +123,7 @@ def register_configs():
     configs = templating.OSConfigRenderer(templates_dir=TEMPLATES,
                                           openstack_release=release)
 
-    confs = [HEAT_CONF, HEAT_API_PASTE, HAPROXY_CONF]
+    confs = [HEAT_CONF, HEAT_API_PASTE, HAPROXY_CONF, ADMIN_OPENRC]
     for conf in confs:
         configs.register(conf, CONFIG_FILES[conf]['contexts'])
 

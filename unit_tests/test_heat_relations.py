@@ -240,5 +240,5 @@ class HeatRelationTests(CharmTestCase):
         self.sync_db_with_multi_ipv6_addresses.return_value = MagicMock()
         self.test_config.set('prefer-ipv6', True)
         relations.db_joined()
-        self.sync_db_with_multi_ipv6_addresses.assert_called_with_once(
-            'heat', 'heat')
+        self.sync_db_with_multi_ipv6_addresses.assert_called_with(
+            'heat', 'heat', relation_prefix='heat')
