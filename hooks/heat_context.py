@@ -61,7 +61,8 @@ class HeatSecurityContext(context.OSContextGenerator):
         # check if we have stored encryption key
         encryption = get_encryption_key()
         ctxt['encryption_key'] = encryption
-        ctxt['heat_domain_admin_passwd'] = leader_get('heat-domain-admin-passwd')
+        ctxt['heat_domain_admin_passwd'] = \
+            leader_get('heat-domain-admin-passwd')
         return ctxt
 
 

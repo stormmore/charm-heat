@@ -111,7 +111,8 @@ CONFIG_FILES = OrderedDict([
         'services': ['apache2'],
     }),
     (ADMIN_OPENRC, {
-        'contexts': [HeatIdentityServiceContext(service=SVC, service_user=SVC)],
+        'contexts': [HeatIdentityServiceContext(service=SVC,
+                                                service_user=SVC)],
         'services': []
     }),
 ])
