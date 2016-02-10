@@ -4,10 +4,16 @@ set -e
 
 . /root/admin-openrc-v3
 
-openstack domain create --description "Stack projects and users" heat
+openstack domain show heat || {
+    openstack domain create --description "Stack projects and users" heat
+}
 
-openstack user create --domain heat --password `leader-get heat-domain-admin-passwd` heat_domain_admin
+openstack user show heat_domain_admin || {
+    openstack user create --domain heat --password `leader-get heat-domain-admin-passwd` heat_domain_admin
+}
 
-openstack role add --domain heat --user heat_domain_admin admin
+openstack role add --domain heat --user heat_domain_admin admin || :
 
-openstack role create heat_stack_user
+openstack role show heat_stack_user || {
+    openstack role create heat_stack_user
+}
