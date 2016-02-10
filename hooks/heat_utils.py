@@ -76,6 +76,7 @@ HAPROXY_CONF = '/etc/haproxy/haproxy.cfg'
 HTTPS_APACHE_CONF = '/etc/apache2/sites-available/openstack_https_frontend'
 HTTPS_APACHE_24_CONF = os.path.join('/etc/apache2/sites-available',
                                     'openstack_https_frontend.conf')
+ADMIN_OPENRC = '/root/admin-openrc-v3'
 
 CONFIG_FILES = OrderedDict([
     (HEAT_CONF, {
@@ -108,7 +109,11 @@ CONFIG_FILES = OrderedDict([
     (HTTPS_APACHE_24_CONF, {
         'contexts': [HeatApacheSSLContext()],
         'services': ['apache2'],
-    })
+    }),
+    (ADMIN_OPENRC, {
+        'contexts': [HeatIdentityServiceContext(service=SVC, service_user=SVC)],
+        'services': []
+    }),
 ])
 
 

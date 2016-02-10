@@ -32,6 +32,7 @@ class HeatIdentityServiceContext(context.IdentityServiceContext):
                                          ctxt['service_host'],
                                          ctxt['service_port'])
         ctxt['keystone_ec2_url'] = ec2_tokens
+        ctxt['region'] = config('region')
         return ctxt
 
 

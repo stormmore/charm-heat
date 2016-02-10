@@ -2,6 +2,8 @@
 
 set -e
 
+. /root/admin-openrc-v3
+
 openstack domain create --description "Stack projects and users" heat
 
 openstack user create --domain heat --password `leader-get heat-domain-admin-passwd` heat_domain_admin
