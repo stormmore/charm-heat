@@ -4,4 +4,4 @@ openstack-upgrade:
     set to True.
 domain-setup:
   description:
-    Setup the keystone domains, roles and user required for Heat to operate.
+    Setup the keystone domains, roles and user required for Heat to operate. Only required for OpenStack >= Kilo.

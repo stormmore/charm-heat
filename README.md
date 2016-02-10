@@ -20,7 +20,7 @@ required domains, roles and users in the cloud for Heat stacks:
 
     juju action do heat/0 domain-setup
 
-This is only required for >= OpenStack Liberty.
+This is only required for >= OpenStack Kilo.
 
 Contact Information
 ===================
