@@ -228,7 +228,7 @@ def relation_broken():
 @hooks.hook('leader-elected')
 def leader_elected():
     if is_leader() and not leader_get('heat-domain-admin-passwd'):
-        leader_set('heat-domain-admin-passwd', pwgen(32))
+        leader_set({'heat-domain-admin-passwd': pwgen(32)})
 
 
 def main():
