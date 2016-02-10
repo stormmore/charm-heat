@@ -2,3 +2,6 @@ openstack-upgrade:
   description:
     Perform openstack upgrades. Config option action-managed-upgrade must be
     set to True.
+domain-setup:
+  description:
+    Setup the keystone domains, roles and user required for Heat to operate.
