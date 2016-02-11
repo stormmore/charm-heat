@@ -484,10 +484,6 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
                 'environment_dir': '/etc/heat/environment.d',
                 'deferred_auth_method': 'password',
                 'host': 'heat',
-                'rabbit_userid': 'heat',
-                'rabbit_virtual_host': 'openstack',
-                'rabbit_password': rmq_rel['password'],
-                'rabbit_host': rmq_rel['hostname']
             },
             'keystone_authtoken': {
                 'auth_uri': auth_uri,
@@ -512,6 +508,15 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
                 'api_paste_config': '/etc/heat/api-paste.ini'
             },
         }
+
+        rabbit_entries = {'rabbit_userid': 'heat',
+                          'rabbit_virtual_host': 'openstack',
+                          'rabbit_password': rmq_rel['password'],
+                          'rabbit_host': rmq_rel['hostname']}
+        if self._get_openstack_release() <= self.utopic_juno:
+            expected['DEFAULT'].update(rabbit_entries)
+        else:
+            expected['oslo_messaging_rabbit'] = rabbit_entries
 
         for section, pairs in expected.iteritems():
             ret = u.validate_config_data(unit, conf, section, pairs)
