@@ -518,6 +518,9 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
         else:
             expected['DEFAULT']['deferred_auth_method'] = 'trusts'
             expected['oslo_messaging_rabbit'] = rabbit_entries
+            del expected['DEFAULT']['auth_host']
+            del expected['DEFAULT']['auth_port']
+            del expected['DEFAULT']['auth_protocol']
 
         for section, pairs in expected.iteritems():
             ret = u.validate_config_data(unit, conf, section, pairs)
