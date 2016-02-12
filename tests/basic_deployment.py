@@ -482,7 +482,6 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
                 'instance_driver': 'heat.engine.nova',
                 'plugin_dirs': '/usr/lib64/heat,/usr/lib/heat',
                 'environment_dir': '/etc/heat/environment.d',
-                'deferred_auth_method': 'password',
                 'host': 'heat',
             },
             'keystone_authtoken': {
@@ -514,8 +513,10 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
                           'rabbit_password': rmq_rel['password'],
                           'rabbit_host': rmq_rel['hostname']}
         if self._get_openstack_release() <= self.utopic_juno:
+            expected['DEFAULT']['deferred_auth_method'] = 'password'
             expected['DEFAULT'].update(rabbit_entries)
         else:
+            expected['DEFAULT']['deferred_auth_method'] = 'trusts'
             expected['oslo_messaging_rabbit'] = rabbit_entries
 
         for section, pairs in expected.iteritems():
