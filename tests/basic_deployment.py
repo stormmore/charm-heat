@@ -128,6 +128,9 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
         # Authenticate admin with heat endpoint
         self.heat = u.authenticate_heat_admin(self.keystone)
 
+        if self._get_openstack_release() >= self.trusty_kilo:
+            u.wait_on_action(u.run_action(self.heat_sentry, 'domain-setup'))
+
     def _image_create(self):
         """Create an image to be used by the heat template, verify it exists"""
         u.log.debug('Creating glance image ({})...'.format(IMAGE_NAME))
