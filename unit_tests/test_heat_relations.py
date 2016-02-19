@@ -41,6 +41,13 @@ TO_PATCH = [
     'execd_preinstall',
     'log',
     'migrate_database',
+    'is_elected_leader',
+    'relation_ids',
+    'relation_get',
+    'local_unit',
+    'get_hacluster_config',
+    'get_iface_for_address',
+    'get_netmask_for_address',
 ]
 
 
@@ -91,12 +98,14 @@ class HeatRelationTests(CharmTestCase):
     def test_db_joined(self):
         self.unit_get.return_value = 'heat.foohost.com'
         relations.db_joined()
-        self.relation_set.assert_called_with(heat_database='heat',
-                                             heat_username='heat',
-                                             heat_hostname='heat.foohost.com')
+        self.relation_set.assert_called_with(database='heat',
+                                             username='heat',
+                                             hostname='heat.foohost.com')
         self.unit_get.assert_called_with('private-address')
 
     def _shared_db_test(self, configs):
+        self.relation_get.return_value = 'heat/0 heat/1'
+        self.local_unit.return_value = 'heat/0'
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['shared-db']
         configs.write = MagicMock()
@@ -242,3 +251,42 @@ class HeatRelationTests(CharmTestCase):
         relations.db_joined()
         self.sync_db_with_multi_ipv6_addresses.assert_called_with(
             'heat', 'heat', relation_prefix='heat')
+
+    @patch.object(relations, 'CONFIGS')
+    def test_non_leader_db_changed(self, configs):
+        self.is_elected_leader.return_value = False
+        configs.complete_contexts.return_value = []
+        self.relation_get.return_value = 'heat/0 heat/1'
+        self.local_unit.return_value = 'heat/0'
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = ['shared-db']
+        configs.write = MagicMock()
+        relations.db_changed()
+        self.assertFalse(self.migrate_database.called)
+
+    @patch.object(relations, 'CONFIGS')
+    def test_ha_joined(self, configs):
+        self.get_hacluster_config.return_value = {
+            'ha-bindiface': 'eth0',
+            'ha-mcastport': '5959',
+            'vip': '10.5.105.3'
+        }
+        self.get_iface_for_address.return_value = 'eth0'
+        self.get_netmask_for_address.return_value = '255.255.255.0'
+        relations.ha_joined()
+        expected = {
+            'relation_id': None,
+            'init_services': {'res_heat_haproxy': 'haproxy'},
+            'corosync_bindiface': 'eth0',
+            'corosync_mcastport': '5959',
+            'resources': {
+                'res_heat_haproxy': 'lsb:haproxy',
+                'res_heat_eth0_vip': 'ocf:heartbeat:IPaddr2'},
+            'resource_params': {
+                'res_heat_haproxy': 'op monitor interval="5s"',
+                'res_heat_eth0_vip': ('params ip="10.5.105.3" '
+                                      'cidr_netmask="255.255.255.0" '
+                                      'nic="eth0"')},
+            'clones': {'cl_heat_haproxy': 'res_heat_haproxy'}
+        }
+        self.relation_set.assert_called_with(**expected)
