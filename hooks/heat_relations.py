@@ -19,7 +19,9 @@ from charmhelpers.core.hookenv import (
     charm_dir,
     log,
     relation_ids,
+    relation_get,
     relation_set,
+    local_unit,
     open_port,
     unit_get,
     status_set,
@@ -37,6 +39,19 @@ from charmhelpers.core.host import (
 from charmhelpers.fetch import (
     apt_install,
     apt_update
+)
+
+from charmhelpers.contrib.hahelpers.cluster import (
+    is_elected_leader,
+    get_hacluster_config,
+)
+
+from charmhelpers.contrib.network.ip import (
+    get_iface_for_address,
+    get_netmask_for_address,
+    get_address_in_network,
+    get_ipv6_addr,
+    is_ipv6
 )
 
 from charmhelpers.contrib.openstack.utils import (
@@ -59,6 +74,7 @@ from heat_utils import (
     determine_packages,
     migrate_database,
     register_configs,
+    CLUSTER_RES,
     HEAT_CONF,
     REQUIRED_INTERFACES,
     setup_ipv6,
@@ -68,6 +84,7 @@ from heat_context import (
     API_PORTS,
 )
 
+from charmhelpers.contrib.openstack.context import ADDRESS_TYPES
 from charmhelpers.payload.execd import execd_preinstall
 
 hooks = Hooks()
@@ -112,6 +129,11 @@ def config_changed():
     CONFIGS.write_all()
     configure_https()
 
+    for rid in relation_ids('cluster'):
+        cluster_joined(relation_id=rid)
+    for r_id in relation_ids('ha'):
+        ha_joined(relation_id=r_id)
+
 
 @hooks.hook('upgrade-charm')
 def upgrade_charm():
@@ -140,9 +162,9 @@ def db_joined():
                                           config('database-user'),
                                           relation_prefix='heat')
     else:
-        relation_set(heat_database=config('database'),
-                     heat_username=config('database-user'),
-                     heat_hostname=unit_get('private-address'))
+        relation_set(database=config('database'),
+                     username=config('database-user'),
+                     hostname=unit_get('private-address'))
 
 
 @hooks.hook('shared-db-relation-changed')
@@ -152,7 +174,15 @@ def db_changed():
         log('shared-db relation incomplete. Peer not ready?')
         return
     CONFIGS.write(HEAT_CONF)
-    migrate_database()
+
+    if is_elected_leader(CLUSTER_RES):
+        allowed_units = relation_get('allowed_units')
+        if allowed_units and local_unit() in allowed_units.split():
+            log('Cluster leader, performing db sync')
+            migrate_database()
+        else:
+            log('allowed_units either not presented, or local unit '
+                'not in acl list: %s' % repr(allowed_units))
 
 
 def configure_https():
@@ -229,6 +259,100 @@ def relation_broken():
 def leader_elected():
     if is_leader() and not leader_get('heat-domain-admin-passwd'):
         leader_set({'heat-domain-admin-passwd': pwgen(32)})
+
+
+@hooks.hook('cluster-relation-joined')
+def cluster_joined(relation_id=None):
+    for addr_type in ADDRESS_TYPES:
+        address = get_address_in_network(
+            config('os-{}-network'.format(addr_type))
+        )
+        if address:
+            relation_set(
+                relation_id=relation_id,
+                relation_settings={'{}-address'.format(addr_type): address}
+            )
+
+    if config('prefer-ipv6'):
+        private_addr = get_ipv6_addr(exc_list=[config('vip')])[0]
+        relation_set(relation_id=relation_id,
+                     relation_settings={'private-address': private_addr})
+
+
+@hooks.hook('cluster-relation-changed',
+            'cluster-relation-departed')
+@restart_on_change(restart_map(), stopstart=True)
+def cluster_changed():
+    CONFIGS.write_all()
+
+
+@hooks.hook('ha-relation-joined')
+def ha_joined(relation_id=None):
+    cluster_config = get_hacluster_config()
+
+    resources = {
+        'res_heat_haproxy': 'lsb:haproxy'
+    }
+
+    resource_params = {
+        'res_heat_haproxy': 'op monitor interval="5s"'
+    }
+
+    vip_group = []
+    for vip in cluster_config['vip'].split():
+        if is_ipv6(vip):
+            res_heat_vip = 'ocf:heartbeat:IPv6addr'
+            vip_params = 'ipv6addr'
+        else:
+            res_heat_vip = 'ocf:heartbeat:IPaddr2'
+            vip_params = 'ip'
+
+        iface = (get_iface_for_address(vip) or
+                 config('vip_iface'))
+        netmask = (get_netmask_for_address(vip) or
+                   config('vip_cidr'))
+
+        if iface is not None:
+            vip_key = 'res_heat_{}_vip'.format(iface)
+            resources[vip_key] = res_heat_vip
+            resource_params[vip_key] = (
+                'params {ip}="{vip}" cidr_netmask="{netmask}"'
+                ' nic="{iface}"'.format(ip=vip_params,
+                                        vip=vip,
+                                        iface=iface,
+                                        netmask=netmask)
+            )
+            vip_group.append(vip_key)
+
+    if len(vip_group) >= 1:
+        relation_set(relation_id=relation_id,
+                     groups={'grp_heat_vips': ' '.join(vip_group)})
+
+    init_services = {
+        'res_heat_haproxy': 'haproxy'
+    }
+    clones = {
+        'cl_heat_haproxy': 'res_heat_haproxy'
+    }
+    relation_set(relation_id=relation_id,
+                 init_services=init_services,
+                 corosync_bindiface=cluster_config['ha-bindiface'],
+                 corosync_mcastport=cluster_config['ha-mcastport'],
+                 resources=resources,
+                 resource_params=resource_params,
+                 clones=clones)
+
+
+@hooks.hook('ha-relation-changed')
+def ha_changed():
+    clustered = relation_get('clustered')
+    if not clustered or clustered in [None, 'None', '']:
+        log('ha_changed: hacluster subordinate not fully clustered.')
+    else:
+        log('Cluster configured, notifying other services and updating '
+            'keystone endpoint configuration')
+        for rid in relation_ids('identity-service'):
+            identity_joined(rid=rid)
 
 
 def main():

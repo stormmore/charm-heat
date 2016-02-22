@@ -68,6 +68,8 @@ BASE_SERVICES = [
     'heat-engine'
 ]
 
+# Cluster resource used to determine leadership when hacluster'd
+CLUSTER_RES = 'grp_heat_vips'
 SVC = 'heat'
 HEAT_DIR = '/etc/heat'
 HEAT_CONF = '/etc/heat/heat.conf'
@@ -82,8 +84,7 @@ CONFIG_FILES = OrderedDict([
     (HEAT_CONF, {
         'services': BASE_SERVICES,
         'contexts': [context.AMQPContext(ssl_dir=HEAT_DIR),
-                     context.SharedDBContext(relation_prefix='heat',
-                                             ssl_dir=HEAT_DIR),
+                     context.SharedDBContext(ssl_dir=HEAT_DIR),
                      context.OSConfigFlagContext(),
                      HeatIdentityServiceContext(service=SVC, service_user=SVC),
                      HeatHAProxyContext(),

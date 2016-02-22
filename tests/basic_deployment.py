@@ -345,9 +345,9 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
         relation = ['shared-db', 'mysql:shared-db']
         expected = {
             'private-address': u.valid_ip,
-            'heat_database': 'heat',
-            'heat_username': 'heat',
-            'heat_hostname': u.valid_ip
+            'database': 'heat',
+            'username': 'heat',
+            'hostname': u.valid_ip
         }
 
         ret = u.validate_relation_data(unit, relation, expected)
@@ -363,8 +363,8 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
         expected = {
             'private-address': u.valid_ip,
             'db_host': u.valid_ip,
-            'heat_allowed_units': 'heat/0',
-            'heat_password': u.not_null
+            'allowed_units': 'heat/0',
+            'password': u.not_null
         }
 
         ret = u.validate_relation_data(unit, relation, expected)
@@ -468,7 +468,7 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
         u.log.debug('mysql:heat relation: {}'.format(mysql_rel))
 
         db_uri = "mysql://{}:{}@{}/{}".format('heat',
-                                              mysql_rel['heat_password'],
+                                              mysql_rel['password'],
                                               mysql_rel['db_host'],
                                               'heat')
 
