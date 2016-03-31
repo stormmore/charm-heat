@@ -22,6 +22,31 @@ required domains, roles and users in the cloud for Heat stacks:
 
 This is only required for >= OpenStack Kilo.
 
+Network Space support
+---------------------
+
+This charm supports the use of Juju Network Spaces, allowing the charm to be bound to network space configurations managed directly by Juju.  This is only supported with Juju 2.0 and above.
+
+API endpoints can be bound to distinct network spaces supporting the network separation of public, internal and admin endpoints.
+
+To use this feature, use the --bind option when deploying the charm:
+
+    juju deploy heat --bind "public=public-space internal=internal-space admin=admin-space"
+
+alternatively these can also be provided as part of a juju native bundle configuration:
+
+    heat:
+      charm: cs:xenial/heat
+      num_units: 1
+      bindings:
+        public: public-space
+        admin: admin-space
+        internal: internal-space
+
+NOTE: Spaces must be configured in the underlying provider prior to attempting to use them.
+
+NOTE: Existing deployments using os-*-network configuration options will continue to function; these options are preferred over any network space binding provided if set.
+
 Contact Information
 ===================
 

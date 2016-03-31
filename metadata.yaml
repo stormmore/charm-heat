@@ -7,6 +7,10 @@ description: |
   templates in the form of text files that can be treated like code.
 tags:
   - openstack
+extra-bindings:
+  public:
+  admin:
+  internal:
 requires:
   shared-db:
     interface: mysql-shared
