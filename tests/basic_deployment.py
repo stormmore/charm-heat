@@ -4,7 +4,6 @@
 Basic heat functional test.
 """
 import amulet
-import time
 from heatclient.common import template_utils
 
 from charmhelpers.contrib.openstack.amulet.deployment import (
@@ -41,6 +40,11 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
         self._add_relations()
         self._configure_services()
         self._deploy()
+
+        u.log.info('Waiting on extended status checks...')
+        exclude_services = ['mysql']
+        self._auto_wait_for_status(exclude_services=exclude_services)
+
         self._initialize_tests()
 
     def _add_services(self):
@@ -107,9 +111,6 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
         u.log.debug('openstack release str: {}'.format(
             self._get_openstack_release_string()))
 
-        # Let things settle a bit before moving forward
-        time.sleep(30)
-
         # Authenticate admin with keystone
         self.keystone = u.authenticate_keystone_admin(self.keystone_sentry,
                                                       user='admin',
@@ -128,7 +129,9 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
         # Authenticate admin with heat endpoint
         self.heat = u.authenticate_heat_admin(self.keystone)
 
+        # Action is REQUIRED to run for a functioning heat deployment
         if self._get_openstack_release() >= self.trusty_kilo:
+            u.log.debug('Running domain-setup action on heat unit...')
             u.wait_on_action(u.run_action(self.heat_sentry, 'domain-setup'))
 
     def _image_create(self):
@@ -273,13 +276,6 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
             self.heat_sentry: ['heat-api',
                                'heat-api-cfn',
                                'heat-engine'],
-            self.mysql_sentry: ['mysql'],
-            self.rabbitmq_sentry: ['rabbitmq-server'],
-            self.nova_compute_sentry: ['nova-compute',
-                                       'nova-network',
-                                       'nova-api'],
-            self.keystone_sentry: ['keystone'],
-            self.glance_sentry: ['glance-registry', 'glance-api']
         }
 
         ret = u.validate_services_by_name(service_names)
@@ -287,26 +283,16 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
             amulet.raise_status(amulet.FAIL, msg=ret)
 
     def test_110_service_catalog(self):
-        """Verify that the service catalog endpoint data is valid."""
+        """Expect certain endpoints and endpoint data to be
+        present in the Keystone service catalog"""
         u.log.debug('Checking service catalog endpoint data...')
-        endpoint_vol = {'adminURL': u.valid_url,
-                        'region': 'RegionOne',
-                        'publicURL': u.valid_url,
-                        'internalURL': u.valid_url}
-        endpoint_id = {'adminURL': u.valid_url,
+        ep_validate = {'adminURL': u.valid_url,
                        'region': 'RegionOne',
                        'publicURL': u.valid_url,
-                       'internalURL': u.valid_url}
-        if self._get_openstack_release() >= self.precise_folsom:
-            endpoint_vol['id'] = u.not_null
-            endpoint_id['id'] = u.not_null
-        expected = {'compute': [endpoint_vol], 'orchestration': [endpoint_vol],
-                    'image': [endpoint_vol], 'identity': [endpoint_id]}
-
-        if self._get_openstack_release() <= self.trusty_juno:
-            # Before Kilo
-            expected['s3'] = [endpoint_vol]
-            expected['ec2'] = [endpoint_vol]
+                       'internalURL': u.valid_url,
+                       'id': u.not_null}
+        expected = {'compute': [ep_validate], 'orchestration': [ep_validate],
+                    'image': [ep_validate], 'identity': [ep_validate]}
 
         actual = self.keystone.service_catalog.get_endpoints()
         ret = u.validate_svc_catalog_endpoint_data(expected, actual)
@@ -318,7 +304,7 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
         u.log.debug('Checking api endpoint data...')
         endpoints = self.keystone.endpoints.list()
 
-        if self._get_openstack_release() <= self.trusty_juno:
+        if self._get_openstack_release() < self.trusty_kilo:
             # Before Kilo
             admin_port = internal_port = public_port = '3333'
         else:
@@ -472,10 +458,6 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
                                               mysql_rel['db_host'],
                                               'heat')
 
-        auth_uri = '{}://{}:{}/v2.0'.format(ks_rel['service_protocol'],
-                                            ks_rel['service_host'],
-                                            ks_rel['service_port'])
-
         expected = {
             'DEFAULT': {
                 'use_syslog': 'False',
@@ -486,16 +468,6 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
                 'plugin_dirs': '/usr/lib64/heat,/usr/lib/heat',
                 'environment_dir': '/etc/heat/environment.d',
                 'host': 'heat',
-            },
-            'keystone_authtoken': {
-                'auth_uri': auth_uri,
-                'auth_host': ks_rel['service_host'],
-                'auth_port': ks_rel['auth_port'],
-                'auth_protocol': ks_rel['auth_protocol'],
-                'admin_tenant_name': 'services',
-                'admin_user': 'heat-cfn_heat',
-                'admin_password': ks_rel['service_password'],
-                'signing_dir': '/var/cache/heat'
             },
             'database': {
                 'connection': db_uri
@@ -510,20 +482,6 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
                 'api_paste_config': '/etc/heat/api-paste.ini'
             },
         }
-
-        rabbit_entries = {'rabbit_userid': 'heat',
-                          'rabbit_virtual_host': 'openstack',
-                          'rabbit_password': rmq_rel['password'],
-                          'rabbit_host': rmq_rel['hostname']}
-        if self._get_openstack_release() <= self.utopic_juno:
-            expected['DEFAULT']['deferred_auth_method'] = 'password'
-            expected['DEFAULT'].update(rabbit_entries)
-        else:
-            expected['DEFAULT']['deferred_auth_method'] = 'trusts'
-            expected['oslo_messaging_rabbit'] = rabbit_entries
-            del expected['keystone_authtoken']['auth_host']
-            del expected['keystone_authtoken']['auth_port']
-            del expected['keystone_authtoken']['auth_protocol']
 
         for section, pairs in expected.iteritems():
             ret = u.validate_config_data(unit, conf, section, pairs)
@@ -575,6 +533,7 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
     def test_410_heat_stack_create_delete(self):
         """Create a heat stack from template, confirm that a corresponding
            nova compute resource is spawned, delete stack."""
+        u.log.debug('Creating, deleting heat stack (compute)...')
         self._image_create()
         self._keypair_create()
         self._stack_create()
@@ -597,19 +556,23 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
         conf_file = '/etc/heat/heat.conf'
 
         # Services which are expected to restart upon config change
-        services = ['heat-api',
-                    'heat-api-cfn',
-                    'heat-engine']
+        services = {
+            'heat-api': conf_file,
+            'heat-api-cfn': conf_file,
+            'heat-engine': conf_file
+        }
 
         # Make config change, check for service restarts
         u.log.debug('Making config change on {}...'.format(juju_service))
+        mtime = u.get_sentry_time(sentry)
         self.d.configure(juju_service, set_alternate)
 
         sleep_time = 30
-        for s in services:
+        for s, conf_file in services.iteritems():
             u.log.debug("Checking that service restarted: {}".format(s))
-            if not u.service_restarted(sentry, s,
-                                       conf_file, sleep_time=sleep_time):
+            if not u.validate_service_config_changed(sentry, mtime, s,
+                                                     conf_file,
+                                                     sleep_time=sleep_time):
                 self.d.configure(juju_service, set_default)
                 msg = "service {} didn't restart after config change".format(s)
                 amulet.raise_status(amulet.FAIL, msg=msg)
