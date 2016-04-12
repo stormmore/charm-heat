@@ -33,6 +33,7 @@ TO_PATCH = [
     'open_port',
     'relation_set',
     'unit_get',
+    'network_get_primary_address',
     # charmhelpers.core.host
     'apt_install',
     'apt_update',
@@ -68,6 +69,7 @@ class HeatRelationTests(CharmTestCase):
         super(HeatRelationTests, self).setUp(relations, TO_PATCH)
         self.config.side_effect = self.test_config.get
         self.charm_dir.return_value = '/var/lib/juju/charms/heat/charm'
+        self.network_get_primary_address.side_effect = NotImplementedError
 
     def test_install_hook(self):
         repo = 'cloud:precise-havana'
@@ -105,6 +107,16 @@ class HeatRelationTests(CharmTestCase):
         relations.config_changed()
 
         self.assertFalse(self.do_openstack_upgrade.called)
+
+    def test_db_joined_spaces(self):
+        self.network_get_primary_address.side_effect = None
+        self.network_get_primary_address.return_value = '192.168.20.1'
+        self.unit_get.return_value = 'heat.foohost.com'
+        relations.db_joined()
+        self.relation_set.assert_called_with(database='heat',
+                                             username='heat',
+                                             hostname='192.168.20.1')
+        self.assertFalse(self.unit_get.called)
 
     def test_db_joined(self):
         self.unit_get.return_value = 'heat.foohost.com'
