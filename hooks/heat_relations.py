@@ -28,6 +28,7 @@ from charmhelpers.core.hookenv import (
     leader_get,
     leader_set,
     is_leader,
+    network_get_primary_address,
 )
 
 from charmhelpers.core.host import (
@@ -166,9 +167,17 @@ def db_joined():
                                           config('database-user'),
                                           relation_prefix='heat')
     else:
+        host = None
+        try:
+            # NOTE: try to use network spaces
+            host = network_get_primary_address('shared-db')
+        except NotImplementedError:
+            # NOTE: fallback to private-address
+            host = unit_get('private-address')
+
         relation_set(database=config('database'),
                      username=config('database-user'),
-                     hostname=unit_get('private-address'))
+                     hostname=host)
 
 
 @hooks.hook('shared-db-relation-changed')
