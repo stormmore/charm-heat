@@ -5,3 +5,6 @@ bin
 tags
 *.sw[nop]
 *.pyc
+precise/
+trusty/
+xenial/

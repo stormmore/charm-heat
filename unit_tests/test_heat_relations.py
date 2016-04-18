@@ -113,17 +113,17 @@ class HeatRelationTests(CharmTestCase):
         self.network_get_primary_address.return_value = '192.168.20.1'
         self.unit_get.return_value = 'heat.foohost.com'
         relations.db_joined()
-        self.relation_set.assert_called_with(database='heat',
-                                             username='heat',
-                                             hostname='192.168.20.1')
+        self.relation_set.assert_called_with(heat_database='heat',
+                                             heat_username='heat',
+                                             heat_hostname='192.168.20.1')
         self.assertFalse(self.unit_get.called)
 
     def test_db_joined(self):
         self.unit_get.return_value = 'heat.foohost.com'
         relations.db_joined()
-        self.relation_set.assert_called_with(database='heat',
-                                             username='heat',
-                                             hostname='heat.foohost.com')
+        self.relation_set.assert_called_with(heat_database='heat',
+                                             heat_username='heat',
+                                             heat_hostname='heat.foohost.com')
         self.unit_get.assert_called_with('private-address')
 
     def _shared_db_test(self, configs):

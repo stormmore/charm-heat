@@ -84,7 +84,8 @@ CONFIG_FILES = OrderedDict([
     (HEAT_CONF, {
         'services': BASE_SERVICES,
         'contexts': [context.AMQPContext(ssl_dir=HEAT_DIR),
-                     context.SharedDBContext(ssl_dir=HEAT_DIR),
+                     context.SharedDBContext(relation_prefix='heat',
+                                             ssl_dir=HEAT_DIR),
                      context.OSConfigFlagContext(),
                      HeatIdentityServiceContext(service=SVC, service_user=SVC),
                      HeatHAProxyContext(),

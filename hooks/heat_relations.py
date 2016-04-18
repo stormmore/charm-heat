@@ -175,9 +175,9 @@ def db_joined():
             # NOTE: fallback to private-address
             host = unit_get('private-address')
 
-        relation_set(database=config('database'),
-                     username=config('database-user'),
-                     hostname=host)
+        relation_set(heat_database=config('database'),
+                     heat_username=config('database-user'),
+                     heat_hostname=host)
 
 
 @hooks.hook('shared-db-relation-changed')
@@ -189,7 +189,7 @@ def db_changed():
     CONFIGS.write(HEAT_CONF)
 
     if is_elected_leader(CLUSTER_RES):
-        allowed_units = relation_get('allowed_units')
+        allowed_units = relation_get('heat_allowed_units')
         if allowed_units and local_unit() in allowed_units.split():
             log('Cluster leader, performing db sync')
             migrate_database()
