@@ -8,3 +8,5 @@ tags
 precise/
 trusty/
 xenial/
+.unit-state.db
+tests/cirros-*-disk.img

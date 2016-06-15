@@ -125,7 +125,31 @@ options:
       os-public-hostname set to 'heat.example.com' with ssl enabled will
       create the following public endpoints for ceilometer:
       .
-      https://ceilometer.example.com:8777/
+      https://heat.example.com:8004/
+  os-internal-hostname:
+    type: string
+    default:
+    description: |
+      The hostname or address of the internal endpoints created for heat
+      in the keystone identity provider.
+      .
+      This value will be used for internal endpoints. For example, an
+      os-internal-hostname set to 'heat.internal.example.com' with ssl enabled
+      will create the following internal endpoints for ceilometer:
+      .
+      https://heat.internal.example.com:8004/
+  os-admin-hostname:
+    type: string
+    default:
+    description: |
+      The hostname or address of the admin endpoints created for heat
+      in the keystone identity provider.
+      .
+      This value will be used for admin endpoints. For example, an
+      os-admin-hostname set to 'heat.admin.example.com' with ssl enabled will
+      create the following admin endpoints for ceilometer:
+      .
+      https://heat.admin.example.com:8004/
   action-managed-upgrade:
     type: boolean
     default: False
@@ -149,6 +173,12 @@ options:
       disabled and a non-temporary address must be configured/available on
       your network interface.
   # HA configuration settings
+  dns-ha:
+    type: boolean
+    default: False
+    description: |
+        Use DNS HA with MAAS 2.0. Note if this is set do not set vip
+        settings below.
   vip:
     type: string
     default:
