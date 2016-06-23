@@ -62,6 +62,10 @@ from charmhelpers.contrib.openstack.utils import (
     sync_db_with_multi_ipv6_addresses,
 )
 
+from charmhelpers.contrib.openstack.ha.utils import (
+    update_dns_ha_resource_params,
+)
+
 from charmhelpers.contrib.openstack.ip import (
     canonical_url,
     ADMIN,
@@ -311,35 +315,40 @@ def ha_joined(relation_id=None):
         'res_heat_haproxy': 'op monitor interval="5s"'
     }
 
-    vip_group = []
-    for vip in cluster_config['vip'].split():
-        if is_ipv6(vip):
-            res_heat_vip = 'ocf:heartbeat:IPv6addr'
-            vip_params = 'ipv6addr'
-        else:
-            res_heat_vip = 'ocf:heartbeat:IPaddr2'
-            vip_params = 'ip'
+    if config('dns-ha'):
+        update_dns_ha_resource_params(relation_id=relation_id,
+                                      resources=resources,
+                                      resource_params=resource_params)
+    else:
+        vip_group = []
+        for vip in cluster_config['vip'].split():
+            if is_ipv6(vip):
+                res_heat_vip = 'ocf:heartbeat:IPv6addr'
+                vip_params = 'ipv6addr'
+            else:
+                res_heat_vip = 'ocf:heartbeat:IPaddr2'
+                vip_params = 'ip'
 
-        iface = (get_iface_for_address(vip) or
-                 config('vip_iface'))
-        netmask = (get_netmask_for_address(vip) or
-                   config('vip_cidr'))
+            iface = (get_iface_for_address(vip) or
+                     config('vip_iface'))
+            netmask = (get_netmask_for_address(vip) or
+                       config('vip_cidr'))
 
-        if iface is not None:
-            vip_key = 'res_heat_{}_vip'.format(iface)
-            resources[vip_key] = res_heat_vip
-            resource_params[vip_key] = (
-                'params {ip}="{vip}" cidr_netmask="{netmask}"'
-                ' nic="{iface}"'.format(ip=vip_params,
-                                        vip=vip,
-                                        iface=iface,
-                                        netmask=netmask)
-            )
-            vip_group.append(vip_key)
+            if iface is not None:
+                vip_key = 'res_heat_{}_vip'.format(iface)
+                resources[vip_key] = res_heat_vip
+                resource_params[vip_key] = (
+                    'params {ip}="{vip}" cidr_netmask="{netmask}"'
+                    ' nic="{iface}"'.format(ip=vip_params,
+                                            vip=vip,
+                                            iface=iface,
+                                            netmask=netmask)
+                )
+                vip_group.append(vip_key)
 
-    if len(vip_group) >= 1:
-        relation_set(relation_id=relation_id,
-                     groups={'grp_heat_vips': ' '.join(vip_group)})
+        if len(vip_group) >= 1:
+            relation_set(relation_id=relation_id,
+                         groups={'grp_heat_vips': ' '.join(vip_group)})
 
     init_services = {
         'res_heat_haproxy': 'haproxy'
