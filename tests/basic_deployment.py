@@ -54,7 +54,7 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
            and the rest of the service are from lp branches that are
            compatible with the local charm (e.g. stable or next).
            """
-        this_service = {'name': 'heat'}
+        this_service = {'name': 'heat', 'constraints': {'mem': '2G'}}
         other_services = [{'name': 'keystone'},
                           {'name': 'rabbitmq-server'},
                           {'name': 'mysql'},
