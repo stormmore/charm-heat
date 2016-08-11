@@ -101,6 +101,7 @@ CONFIG_FILES = OrderedDict([
                      InstanceUserContext(),
                      context.SyslogContext(),
                      context.LogLevelContext(),
+                     context.WorkerConfigContext(),
                      context.BindHostContext()]
     }),
     (HEAT_API_PASTE, {
