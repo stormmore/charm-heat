@@ -7,6 +7,11 @@ description: |
   templates in the form of text files that can be treated like code.
 tags:
   - openstack
+series:
+  - xenial
+  - trusty
+  - precise
+  - yakkety
 extra-bindings:
   public:
   admin:
