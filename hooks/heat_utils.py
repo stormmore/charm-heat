@@ -70,6 +70,8 @@ BASE_PACKAGES = [
     'haproxy',
 ]
 
+VERSION_PACKAGE = 'heat-common'
+
 BASE_SERVICES = [
     'heat-api',
     'heat-api-cfn',

@@ -67,6 +67,7 @@ from charmhelpers.contrib.openstack.utils import (
     openstack_upgrade_available,
     set_os_workload_status,
     sync_db_with_multi_ipv6_addresses,
+    os_application_version_set,
 )
 
 from charmhelpers.contrib.openstack.ha.utils import (
@@ -90,6 +91,7 @@ from heat_utils import (
     HEAT_CONF,
     REQUIRED_INTERFACES,
     setup_ipv6,
+    VERSION_PACKAGE,
 )
 
 from heat_context import (
@@ -396,6 +398,7 @@ def main():
     except UnregisteredHookError as e:
         log('Unknown hook {} - skipping.'.format(e))
     set_os_workload_status(CONFIGS, REQUIRED_INTERFACES)
+    os_application_version_set(VERSION_PACKAGE)
 
 
 if __name__ == '__main__':
