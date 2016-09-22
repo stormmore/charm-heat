@@ -56,9 +56,10 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
         self._deploy()
 
         u.log.info('Waiting on extended status checks...')
-        exclude_services = ['mysql']
+        exclude_services = []
         self._auto_wait_for_status(exclude_services=exclude_services)
 
+        self.d.sentry.wait()
         self._initialize_tests()
 
     def _add_services(self):
@@ -69,12 +70,14 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
            compatible with the local charm (e.g. stable or next).
            """
         this_service = {'name': 'heat', 'constraints': {'mem': '2G'}}
-        other_services = [{'name': 'keystone'},
-                          {'name': 'rabbitmq-server'},
-                          {'name': 'mysql'},
-                          {'name': 'glance'},
-                          {'name': 'nova-cloud-controller'},
-                          {'name': 'nova-compute'}]
+        other_services = [
+            {'name': 'keystone'},
+            {'name': 'rabbitmq-server'},
+            {'name': 'percona-cluster', 'constraints': {'mem': '3072M'}},
+            {'name': 'glance'},
+            {'name': 'nova-cloud-controller'},
+            {'name': 'nova-compute'}
+        ]
         super(HeatBasicDeployment, self)._add_services(this_service,
                                                        other_services)
 
@@ -84,20 +87,20 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
         relations = {
             'heat:amqp': 'rabbitmq-server:amqp',
             'heat:identity-service': 'keystone:identity-service',
-            'heat:shared-db': 'mysql:shared-db',
+            'heat:shared-db': 'percona-cluster:shared-db',
             'nova-compute:image-service': 'glance:image-service',
-            'nova-compute:shared-db': 'mysql:shared-db',
+            'nova-compute:shared-db': 'percona-cluster:shared-db',
             'nova-compute:amqp': 'rabbitmq-server:amqp',
-            'nova-cloud-controller:shared-db': 'mysql:shared-db',
+            'nova-cloud-controller:shared-db': 'percona-cluster:shared-db',
             'nova-cloud-controller:identity-service':
             'keystone:identity-service',
             'nova-cloud-controller:amqp': 'rabbitmq-server:amqp',
             'nova-cloud-controller:cloud-compute':
             'nova-compute:cloud-compute',
             'nova-cloud-controller:image-service': 'glance:image-service',
-            'keystone:shared-db': 'mysql:shared-db',
+            'keystone:shared-db': 'percona-cluster:shared-db',
             'glance:identity-service': 'keystone:identity-service',
-            'glance:shared-db': 'mysql:shared-db',
+            'glance:shared-db': 'percona-cluster:shared-db',
             'glance:amqp': 'rabbitmq-server:amqp'
         }
         super(HeatBasicDeployment, self)._add_relations(relations)
@@ -108,14 +111,25 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
                        'enable-live-migration': 'False'}
         keystone_config = {'admin-password': 'openstack',
                            'admin-token': 'ubuntutesting'}
-        configs = {'nova-compute': nova_config, 'keystone': keystone_config}
+        pxc_config = {
+            'dataset-size': '25%',
+            'max-connections': 1000,
+            'root-password': 'ChangeMe123',
+            'sst-password': 'ChangeMe123',
+        }
+
+        configs = {
+            'nova-compute': nova_config,
+            'keystone': keystone_config,
+            'percona-cluster': pxc_config,
+        }
         super(HeatBasicDeployment, self)._configure_services(configs)
 
     def _initialize_tests(self):
         """Perform final initialization before tests get run."""
         # Access the sentries for inspecting service units
         self.heat_sentry = self.d.sentry['heat'][0]
-        self.mysql_sentry = self.d.sentry['mysql'][0]
+        self.pxc_sentry = self.d.sentry['percona-cluster'][0]
         self.keystone_sentry = self.d.sentry['keystone'][0]
         self.rabbitmq_sentry = self.d.sentry['rabbitmq-server'][0]
         self.nova_compute_sentry = self.d.sentry['nova-compute'][0]
@@ -342,7 +356,7 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
         """Verify the heat:mysql shared-db relation data"""
         u.log.debug('Checking heat:mysql shared-db relation data...')
         unit = self.heat_sentry
-        relation = ['shared-db', 'mysql:shared-db']
+        relation = ['shared-db', 'percona-cluster:shared-db']
         expected = {
             'private-address': u.valid_ip,
             'heat_database': 'heat',
@@ -358,7 +372,7 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
     def test_201_mysql_heat_shared_db_relation(self):
         """Verify the mysql:heat shared-db relation data"""
         u.log.debug('Checking mysql:heat shared-db relation data...')
-        unit = self.mysql_sentry
+        unit = self.pxc_sentry
         relation = ['shared-db', 'heat:shared-db']
         expected = {
             'private-address': u.valid_ip,
@@ -372,7 +386,7 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
 
         ret = u.validate_relation_data(unit, relation, expected)
         if ret:
-            message = u.relation_error('mysql:heat shared-db', ret)
+            message = u.relation_error('percona-cluster:heat shared-db', ret)
             amulet.raise_status(amulet.FAIL, msg=message)
 
     def test_202_heat_keystone_identity_relation(self):
@@ -463,12 +477,12 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
                                                'heat:identity-service')
         rmq_rel = self.rabbitmq_sentry.relation('amqp',
                                                 'heat:amqp')
-        mysql_rel = self.mysql_sentry.relation('shared-db',
-                                               'heat:shared-db')
+        mysql_rel = self.pxc_sentry.relation('shared-db',
+                                             'heat:shared-db')
 
         u.log.debug('keystone:heat relation: {}'.format(ks_rel))
         u.log.debug('rabbitmq:heat relation: {}'.format(rmq_rel))
-        u.log.debug('mysql:heat relation: {}'.format(mysql_rel))
+        u.log.debug('percona-cluster:heat relation: {}'.format(mysql_rel))
 
         db_uri = "mysql://{}:{}@{}/{}".format('heat',
                                               mysql_rel['heat_password'],
