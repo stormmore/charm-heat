@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 #
 # Copyright 2016 Canonical Ltd
 #
@@ -154,6 +154,8 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
                                              password='openstack',
                                              tenant='admin')
 
+        u.create_flavor(nova=self.nova,
+                        name='m1.tiny', ram=512, vcpus=1, disk=1)
         # Authenticate admin with heat endpoint
         self.heat = u.authenticate_heat_admin(self.keystone)
 
