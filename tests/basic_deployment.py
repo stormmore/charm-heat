@@ -354,6 +354,12 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
             message = 'heat endpoint: {}'.format(ret)
             amulet.raise_status(amulet.FAIL, msg=message)
 
+    def test_130_memcache(self):
+        u.validate_memcache(self.heat_sentry,
+                            '/etc/heat/heat.conf',
+                            self._get_openstack_release(),
+                            earliest_release=self.trusty_mitaka)
+
     def test_200_heat_mysql_shared_db_relation(self):
         """Verify the heat:mysql shared-db relation data"""
         u.log.debug('Checking heat:mysql shared-db relation data...')

@@ -37,6 +37,8 @@ TO_PATCH = [
     'check_call',
     'service_start',
     'service_stop',
+    'token_cache_pkgs',
+    'enable_memcache',
 ]
 
 
@@ -49,6 +51,7 @@ RESTART_MAP = OrderedDict([
     ('/etc/apache2/sites-available/openstack_https_frontend', ['apache2']),
     ('/etc/apache2/sites-available/openstack_https_frontend.conf',
      ['apache2']),
+    ('/etc/memcached.conf', ['memcached']),
 ])
 
 
@@ -63,6 +66,15 @@ class HeatUtilsTests(CharmTestCase):
         self.os_release.return_value = 'havana'
         pkgs = utils.determine_packages()
         ex = list(set(utils.BASE_PACKAGES + utils.BASE_SERVICES))
+        self.assertEquals(ex, pkgs)
+
+    @patch('charmhelpers.contrib.openstack.context.SubordinateConfigContext')
+    def test_determine_packages_newton(self, subcontext):
+        self.os_release.return_value = 'newton'
+        self.token_cache_pkgs.return_value = ['memcached']
+        pkgs = utils.determine_packages()
+        ex = list(set(utils.BASE_PACKAGES + ['memcached'] +
+                      utils.BASE_SERVICES))
         self.assertEquals(ex, pkgs)
 
     def test_restart_map(self):

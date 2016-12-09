@@ -22,7 +22,10 @@ from charmhelpers.contrib.openstack import context, templating
 from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
     get_os_codename_install_source,
-    os_release)
+    os_release,
+    token_cache_pkgs,
+    enable_memcache,
+)
 
 from charmhelpers.fetch import (
     add_source,
@@ -89,6 +92,7 @@ HTTPS_APACHE_CONF = '/etc/apache2/sites-available/openstack_https_frontend'
 HTTPS_APACHE_24_CONF = os.path.join('/etc/apache2/sites-available',
                                     'openstack_https_frontend.conf')
 ADMIN_OPENRC = '/root/admin-openrc-v3'
+MEMCACHED_CONF = '/etc/memcached.conf'
 
 CONFIG_FILES = OrderedDict([
     (HEAT_CONF, {
@@ -104,7 +108,8 @@ CONFIG_FILES = OrderedDict([
                      context.SyslogContext(),
                      context.LogLevelContext(),
                      context.WorkerConfigContext(),
-                     context.BindHostContext()]
+                     context.BindHostContext(),
+                     context.MemcacheContext()],
     }),
     (HEAT_API_PASTE, {
         'services': [s for s in BASE_SERVICES if 'api' in s],
@@ -128,6 +133,10 @@ CONFIG_FILES = OrderedDict([
                                                 service_user=SVC)],
         'services': []
     }),
+    (MEMCACHED_CONF, {
+        'hook_contexts': [context.MemcacheContext()],
+        'services': ['memcached'],
+    }),
 ])
 
 
@@ -147,6 +156,9 @@ def register_configs():
         configs.register(HTTPS_APACHE_CONF,
                          CONFIG_FILES[HTTPS_APACHE_CONF]['contexts'])
 
+    if enable_memcache(release=release):
+        configs.register(MEMCACHED_CONF,
+                         CONFIG_FILES[MEMCACHED_CONF]['hook_contexts'])
     return configs
 
 
@@ -157,6 +169,7 @@ def api_port(service):
 def determine_packages():
     # currently all packages match service names
     packages = BASE_PACKAGES + BASE_SERVICES
+    packages.extend(token_cache_pkgs(source=config('openstack-origin')))
     return list(set(packages))
 
 
