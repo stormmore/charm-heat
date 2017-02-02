@@ -172,6 +172,12 @@ options:
       order for this charm to function correctly, the privacy extension must be
       disabled and a non-temporary address must be configured/available on
       your network interface.
+  config-flags:
+    type: string
+    default:
+    description: |
+      Comma-separated list of key=value config flags. These values will be
+      placed in the heat.conf [DEFAULT] section.
   # HA configuration settings
   dns-ha:
     type: boolean
@@ -224,4 +230,3 @@ options:
       The CPU core multiplier to use when configuring worker processes for
       Heat.  By default, the number of workers for each daemon is set to
       twice the number of CPU cores a service unit has.
-

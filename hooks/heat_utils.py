@@ -109,7 +109,8 @@ CONFIG_FILES = OrderedDict([
                      context.LogLevelContext(),
                      context.WorkerConfigContext(),
                      context.BindHostContext(),
-                     context.MemcacheContext()],
+                     context.MemcacheContext(),
+                     context.OSConfigFlagContext()],
     }),
     (HEAT_API_PASTE, {
         'services': [s for s in BASE_SERVICES if 'api' in s],
