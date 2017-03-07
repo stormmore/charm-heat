@@ -78,6 +78,12 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
             {'name': 'nova-cloud-controller'},
             {'name': 'nova-compute'}
         ]
+        if self._get_openstack_release() >= self.xenial_ocata:
+            other_services.extend([
+                {'name': 'neutron-gateway'},
+                {'name': 'neutron-api'},
+                {'name': 'neutron-openvswitch'},
+            ])
         super(HeatBasicDeployment, self)._add_services(this_service,
                                                        other_services)
 
@@ -103,6 +109,19 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
             'glance:shared-db': 'percona-cluster:shared-db',
             'glance:amqp': 'rabbitmq-server:amqp'
         }
+        if self._get_openstack_release() >= self.xenial_ocata:
+            relations.update({
+                'neutron-gateway:amqp': 'rabbitmq-server:amqp',
+                'nova-cloud-controller:quantum-network-service':
+                'neutron-gateway:quantum-network-service',
+                'neutron-api:shared-db': 'percona-cluster:shared-db',
+                'neutron-api:amqp': 'rabbitmq-server:amqp',
+                'neutron-api:neutron-api': 'nova-cloud-controller:neutron-api',
+                'neutron-api:identity-service': 'keystone:identity-service',
+                'nova-compute:neutron-plugin': 'neutron-openvswitch:'
+                                               'neutron-plugin',
+                'rabbitmq-server:amqp': 'neutron-openvswitch:amqp',
+            })
         super(HeatBasicDeployment, self)._add_relations(relations)
 
     def _configure_services(self):
@@ -118,10 +137,23 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
             'sst-password': 'ChangeMe123',
         }
 
+        heat_config = {
+            'debug': True,
+            'verbose': True,
+        }
+
+        nova_cc_config = {
+            'api-rate-limit-rules': "( POST, '*', .*, 9999, MINUTE );",
+        }
+        if self._get_openstack_release() >= self.xenial_ocata:
+            nova_cc_config['network-manager'] = 'Neutron'
+
         configs = {
+            'nova-cloud-controller': nova_cc_config,
             'nova-compute': nova_config,
             'keystone': keystone_config,
             'percona-cluster': pxc_config,
+            'heat': heat_config,
         }
         super(HeatBasicDeployment, self)._configure_services(configs)
 
@@ -500,8 +532,8 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
         expected = {
             'DEFAULT': {
                 'use_syslog': 'False',
-                'debug': 'False',
-                'verbose': 'False',
+                'debug': 'True',
+                'verbose': 'True',
                 'log_dir': '/var/log/heat',
                 'instance_driver': 'heat.engine.nova',
                 'plugin_dirs': '/usr/lib64/heat,/usr/lib/heat',
