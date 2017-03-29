@@ -25,6 +25,7 @@ from charmhelpers.contrib.openstack.utils import (
     os_release,
     token_cache_pkgs,
     enable_memcache,
+    CompareOpenStackReleases,
 )
 
 from charmhelpers.fetch import (
@@ -43,6 +44,7 @@ from charmhelpers.core.host import (
     lsb_release,
     service_start,
     service_stop,
+    CompareHostReleases,
 )
 
 from heat_context import (
@@ -243,13 +245,14 @@ def migrate_database():
 
 def setup_ipv6():
     ubuntu_rel = lsb_release()['DISTRIB_CODENAME'].lower()
-    if ubuntu_rel < "trusty":
+    if CompareHostReleases(ubuntu_rel) < "trusty":
         raise Exception("IPv6 is not supported in the charms for Ubuntu "
                         "versions less than Trusty 14.04")
 
     # Need haproxy >= 1.5.3 for ipv6 so for Trusty if we are <= Kilo we need to
     # use trusty-backports otherwise we can use the UCA.
-    if ubuntu_rel == 'trusty' and os_release('heat-common') < 'liberty':
+    if (ubuntu_rel == 'trusty' and
+            CompareOpenStackReleases(os_release('heat-common')) < 'liberty'):
         add_source('deb http://archive.ubuntu.com/ubuntu trusty-backports '
                    'main')
         apt_update()
