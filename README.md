@@ -16,7 +16,13 @@ nova-cloud-controller. The following assumes these services have already
 been deployed.
 
 After deployment of the cloud, the domain-setup action must be run to configure
-required domains, roles and users in the cloud for Heat stacks:
+required domains, roles and users in the cloud for Heat stacks.
+
+For juju 2.x deployments use:
+
+    juju run-action heat/0 domain-setup
+    
+If using juju 1.x run:
 
     juju action do heat/0 domain-setup
 
