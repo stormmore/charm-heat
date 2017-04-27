@@ -323,8 +323,8 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
     def _image_delete(self):
         """Delete that image."""
         u.log.debug('Deleting glance image...')
-        image = self.nova.images.find(name=IMAGE_NAME)
-        u.delete_resource(self.nova.images, image, msg="glance image")
+        image = self.nova.glance.find_image(IMAGE_NAME)
+        u.delete_resource(self.glance.images, image, msg="glance image")
 
     def _keypair_delete(self):
         """Delete that keypair."""
