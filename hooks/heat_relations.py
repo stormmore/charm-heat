@@ -28,14 +28,13 @@ from charmhelpers.core.hookenv import (
     relation_ids,
     relation_get,
     relation_set,
+    related_units,
     local_unit,
     open_port,
-    unit_get,
     status_set,
     leader_get,
     leader_set,
     is_leader,
-    network_get_primary_address,
 )
 
 from charmhelpers.core.host import (
@@ -57,9 +56,8 @@ from charmhelpers.contrib.hahelpers.cluster import (
 from charmhelpers.contrib.network.ip import (
     get_iface_for_address,
     get_netmask_for_address,
-    get_address_in_network,
-    get_ipv6_addr,
-    is_ipv6
+    is_ipv6,
+    get_relation_ip,
 )
 
 from charmhelpers.contrib.openstack.utils import (
@@ -180,13 +178,14 @@ def db_joined():
                                           config('database-user'),
                                           relation_prefix='heat')
     else:
-        host = None
-        try:
-            # NOTE: try to use network spaces
-            host = network_get_primary_address('shared-db')
-        except NotImplementedError:
-            # NOTE: fallback to private-address
-            host = unit_get('private-address')
+        # Avoid churn check for access-network early
+        access_network = None
+        for unit in related_units():
+            access_network = relation_get(unit=unit,
+                                          attribute='access-network')
+            if access_network:
+                break
+        host = get_relation_ip('shared-db', cidr_network=access_network)
 
         relation_set(heat_database=config('database'),
                      heat_username=config('database-user'),
@@ -289,20 +288,18 @@ def leader_elected():
 
 @hooks.hook('cluster-relation-joined')
 def cluster_joined(relation_id=None):
-    for addr_type in ADDRESS_TYPES:
-        address = get_address_in_network(
-            config('os-{}-network'.format(addr_type))
-        )
-        if address:
-            relation_set(
-                relation_id=relation_id,
-                relation_settings={'{}-address'.format(addr_type): address}
-            )
+    settings = {}
 
-    if config('prefer-ipv6'):
-        private_addr = get_ipv6_addr(exc_list=[config('vip')])[0]
-        relation_set(relation_id=relation_id,
-                     relation_settings={'private-address': private_addr})
+    for addr_type in ADDRESS_TYPES:
+        address = get_relation_ip(
+            addr_type,
+            cidr_network=config('os-{}-network'.format(addr_type)))
+        if address:
+            settings['{}-address'.format(addr_type)] = address
+
+    settings['private-address'] = get_relation_ip('cluster')
+
+    relation_set(relation_id=relation_id, relation_settings=settings)
 
 
 @hooks.hook('cluster-relation-changed',

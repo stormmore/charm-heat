@@ -46,8 +46,7 @@ TO_PATCH = [
     'config',
     'open_port',
     'relation_set',
-    'unit_get',
-    'network_get_primary_address',
+    'related_units',
     # charmhelpers.core.host
     'apt_install',
     'apt_update',
@@ -75,6 +74,7 @@ TO_PATCH = [
     'local_unit',
     'get_hacluster_config',
     'get_iface_for_address',
+    'get_relation_ip',
     'get_netmask_for_address',
 ]
 
@@ -85,7 +85,6 @@ class HeatRelationTests(CharmTestCase):
         super(HeatRelationTests, self).setUp(relations, TO_PATCH)
         self.config.side_effect = self.test_config.get
         self.charm_dir.return_value = '/var/lib/juju/charms/heat/charm'
-        self.network_get_primary_address.side_effect = NotImplementedError
 
     def test_install_hook(self):
         repo = 'cloud:precise-havana'
@@ -124,23 +123,13 @@ class HeatRelationTests(CharmTestCase):
 
         self.assertFalse(self.do_openstack_upgrade.called)
 
-    def test_db_joined_spaces(self):
-        self.network_get_primary_address.side_effect = None
-        self.network_get_primary_address.return_value = '192.168.20.1'
-        self.unit_get.return_value = 'heat.foohost.com'
+    def test_db_joined(self):
+        self.get_relation_ip.return_value = '192.168.20.1'
         relations.db_joined()
         self.relation_set.assert_called_with(heat_database='heat',
                                              heat_username='heat',
                                              heat_hostname='192.168.20.1')
-        self.assertFalse(self.unit_get.called)
-
-    def test_db_joined(self):
-        self.unit_get.return_value = 'heat.foohost.com'
-        relations.db_joined()
-        self.relation_set.assert_called_with(heat_database='heat',
-                                             heat_username='heat',
-                                             heat_hostname='heat.foohost.com')
-        self.unit_get.assert_called_with('private-address')
+        self.assertTrue(self.get_relation_ip.called)
 
     def _shared_db_test(self, configs):
         self.relation_get.return_value = 'heat/0 heat/1'
@@ -204,7 +193,6 @@ class HeatRelationTests(CharmTestCase):
     @patch.object(relations, 'canonical_url')
     def test_identity_service_joined(self, _canonical_url):
         "It properly requests unclustered endpoint via identity-service"
-        self.unit_get.return_value = 'heatnode1'
         _canonical_url.return_value = 'http://heatnode1'
         relations.identity_joined()
         expected = {
@@ -284,7 +272,6 @@ class HeatRelationTests(CharmTestCase):
 
     def test_db_joined_with_ipv6(self):
         'It properly requests access to a shared-db service'
-        self.unit_get.return_value = 'heatnode1'
         self.sync_db_with_multi_ipv6_addresses.return_value = MagicMock()
         self.test_config.set('prefer-ipv6', True)
         relations.db_joined()
