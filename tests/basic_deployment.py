@@ -231,7 +231,7 @@ class HeatBasicDeployment(OpenStackAmuletDeployment):
         u.log.debug('Creating heat stack...')
 
         t_url = u.file_to_url(TEMPLATE_REL_PATH)
-        r_req = self.heat.http_client.raw_request
+        r_req = self.heat.http_client
         u.log.debug('template url: {}'.format(t_url))
 
         t_files, template = template_utils.get_template_contents(t_url, r_req)
