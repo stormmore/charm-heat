@@ -247,3 +247,10 @@ options:
     description: |
       Default multicast port number that will be used to communicate between
       HA Cluster nodes.
+  use-internal-endpoints:
+    type: boolean
+    default: False
+    description: |
+      Openstack mostly defaults to using public endpoints for
+      internal communication between services. If set to True this option
+      will configure services to use internal endpoints where possible.
