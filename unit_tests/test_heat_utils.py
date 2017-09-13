@@ -66,7 +66,7 @@ class HeatUtilsTests(CharmTestCase):
         self.os_release.return_value = 'havana'
         pkgs = utils.determine_packages()
         ex = list(set(utils.BASE_PACKAGES + utils.BASE_SERVICES))
-        self.assertEquals(ex, pkgs)
+        self.assertEqual(ex, pkgs)
 
     @patch('charmhelpers.contrib.openstack.context.SubordinateConfigContext')
     def test_determine_packages_newton(self, subcontext):
@@ -75,10 +75,10 @@ class HeatUtilsTests(CharmTestCase):
         pkgs = utils.determine_packages()
         ex = list(set(utils.BASE_PACKAGES + ['memcached'] +
                       utils.BASE_SERVICES))
-        self.assertEquals(ex, pkgs)
+        self.assertEqual(ex, pkgs)
 
     def test_restart_map(self):
-        self.assertEquals(RESTART_MAP, utils.restart_map())
+        self.assertEqual(RESTART_MAP, utils.restart_map())
 
     def test_openstack_upgrade(self):
         self.config.side_effect = None
@@ -94,9 +94,9 @@ class HeatUtilsTests(CharmTestCase):
 
     def test_api_ports(self):
         cfn = utils.api_port('heat-api-cfn')
-        self.assertEquals(cfn, 8000)
+        self.assertEqual(cfn, 8000)
         cfn = utils.api_port('heat-api')
-        self.assertEquals(cfn, 8004)
+        self.assertEqual(cfn, 8004)
 
     def test_migrate_database(self):
         utils.migrate_database()

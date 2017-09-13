@@ -143,8 +143,8 @@ class HeatRelationTests(CharmTestCase):
     @patch.object(relations, 'CONFIGS')
     def test_db_changed(self, configs):
         self._shared_db_test(configs)
-        self.assertEquals([call('/etc/heat/heat.conf')],
-                          configs.write.call_args_list)
+        self.assertEqual([call('/etc/heat/heat.conf')],
+                         configs.write.call_args_list)
 
     @patch.object(relations, 'CONFIGS')
     def test_db_changed_missing_relation_data(self, configs):
@@ -175,8 +175,8 @@ class HeatRelationTests(CharmTestCase):
         configs.complete_contexts.return_value = ['amqp']
         configs.write = MagicMock()
         relations.amqp_changed()
-        self.assertEquals([call('/etc/heat/heat.conf')],
-                          configs.write.call_args_list)
+        self.assertEqual([call('/etc/heat/heat.conf')],
+                         configs.write.call_args_list)
 
     @patch.object(relations, 'CONFIGS')
     def test_amqp_changed_missing_relation_data(self, configs):

@@ -32,7 +32,7 @@ class TestHeatContext(CharmTestCase):
     def test_encryption_configuration(self):
         self.get_encryption_key.return_value = 'key'
         self.leader_get.return_value = 'password'
-        self.assertEquals(
+        self.assertEqual(
             heat_context.HeatSecurityContext()(),
             {'encryption_key': 'key',
              'heat_domain_admin_passwd': 'password'})
@@ -40,7 +40,7 @@ class TestHeatContext(CharmTestCase):
 
     def test_instance_user_empty_configuration(self):
         self.config.return_value = None
-        self.assertEquals(
+        self.assertEqual(
             heat_context.InstanceUserContext()(),
             {'instance_user': ''})
 
@@ -64,5 +64,5 @@ class TestHeatContext(CharmTestCase):
         final_result['keystone_ec2_url'] = \
             self.generate_ec2_tokens.return_value
 
-        self.assertEquals(
+        self.assertEqual(
             heat_context.HeatIdentityServiceContext()(), final_result)
